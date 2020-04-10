@@ -1,5 +1,5 @@
 import hashlib
-from core.util import lang
+from . import lang
 from django.db.models import Q
 import logging
 import re

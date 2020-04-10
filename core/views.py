@@ -8,7 +8,7 @@ from django.template.loader import render_to_string
 from rest_framework import permissions, serializers
 from django.core.exceptions import ValidationError
 import json
-from core.models import Preferences, Roles, MobileTemp, PrefConstants, Download, Confirm
+from .models import Preferences, Roles, MobileTemp, PrefConstants, Download, Confirm
 from .util.extend import (
     DefaultsMixin,
     DefaultsCustomerMixin,
@@ -18,11 +18,11 @@ from .util.extend import (
     StaffPermission,
     AjaxForm)
 from .util import extend
-from core.util.helper import email_request_code
+#from core.util.helper import email_request_code
 
 from rest_framework.renderers import TemplateHTMLRenderer, JSONRenderer
 from django.views.decorators.http import require_GET, require_POST
-from core.serializers import (
+from .serializers import (
     RegistrationSerializer,
     ConfirmMobileSerializer,
     RequestCodeSerializer,
@@ -35,10 +35,10 @@ from core.serializers import (
     DownloadSerializer,
     StaffByRoleSerializer
 )
-from core.util import acl
+from .util import acl
 from django.contrib.auth.models import User
-from core.util.extra_helper import get_ip, play_filtering_form
-from core.util.auth_helper import auth_token_response
+from .util.extra_helper import get_ip, play_filtering_form
+from .util.auth_helper import auth_token_response
 from django.utils.translation import ugettext_lazy as _
 from rest_framework.authtoken.models import Token
 
@@ -322,9 +322,9 @@ class RequestConfirmEmailView(DefaultsCustomerMixin, views.APIView):
         customer.save()
 
         # send confirmation email
-        camp = email_request_code(user, email)
+        #camp = email_request_code(user, email)
         data = serializer.data
-        data['request_id'] = camp.id
+        #data['request_id'] = camp.id
         return Response(data)
 
 @require_GET

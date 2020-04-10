@@ -1,7 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.contrib.postgres.fields import JSONField
-from core.util import extend
+from .util import extend
 from django.utils.translation import ugettext_lazy as _
 # extend.TrackModel = core.util.extend.extend.TrackModel
 # from .utils import extract_user_roles
