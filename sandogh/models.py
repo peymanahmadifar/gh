@@ -179,6 +179,7 @@ class Turn(extend.TrackModel):
     class Meta:
         verbose_name = "نوبت"
         verbose_name_plural = "نوبت‌ها"
+
     request = models.ForeignKey('Request', on_delete=models.CASCADE)
     number = models.IntegerField(default=0)
     due_date = models.DateField()
@@ -197,6 +198,7 @@ class Payment(extend.TrackModel):
     class Meta:
         verbose_name = "پرداخت"
         verbose_name_plural = "پرداخت‌ها"
+
     TYPE_INSTALLMENT = 0
     TYPE_SAVING = 1
     TYPE_CHOICES = (
@@ -305,12 +307,12 @@ class Terminal(extend.TrackModel):
     desc = models.CharField(max_length=100, default='', blank=True)
     terminal_id = models.CharField(max_length=100, blank=True, default='')
     data = JSONField(default=dict, editable=False)
-    # branch = models.ForeignKey('sales.Branch', blank=True, null=True, on_delete=models.PROTECT)
 
+    # branch = models.ForeignKey('sales.Branch', blank=True, null=True, on_delete=models.PROTECT)
 
     def __str__(self):
         return "%s مرچانت (%s) ترمینال (%s) نوع (%s)" % (
-        self.bank.name, self.bank.merchant_id, self.terminal_id, self.get_type_label())
+            self.bank.name, self.bank.merchant_id, self.terminal_id, self.get_type_label())
 
     def get_type_label(self):
         for i in self.TYPE_ID_CHOICES:
