@@ -1,5 +1,5 @@
 import locale, re
-locale.setlocale(locale.LC_ALL, 'fa_IR')
+#locale.setlocale(locale.LC_ALL, 'fa_IR')   there was an error in this code
 from .jdatetime import datetime as dt
 from datetime import datetime as gdt
 from dateutil.parser import parse

@@ -94,6 +94,7 @@ class Lender(extend.TrackModel):
         verbose_name_plural = "صندوق‌ها"
 
     name = models.CharField(max_length=100)
+    domain = models.CharField(max_length=60)
     admin = models.ForeignKey(settings.AUTH_USER_MODEL, blank=True, null=True, verbose_name=_('admin username'),
                               on_delete=models.CASCADE)
 

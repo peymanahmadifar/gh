@@ -9,6 +9,7 @@ from django.db.models.signals import pre_save, post_save
 # from accounting.helpers import create_or_update_account
 from django.dispatch import receiver
 
+
 # add a signal to user model at adding new user to create account for him/her
 # for now we create account for everybody! staff or customer! It may help us in the future
 # @receiver(post_save, sender=User)
@@ -42,6 +43,7 @@ class Confirm(extend.TrackModel):
     count = models.IntegerField(default=1)
 
     _which_choices = None
+
     @staticmethod
     def get_which_label(id):
         if Confirm._which_choices == None:
@@ -49,39 +51,42 @@ class Confirm(extend.TrackModel):
             for i in Confirm.WHICH_CHOICES:
                 Confirm._which_choices[str(i[0])] = i[1]
         return Confirm._which_choices[str(id)]
+
     def __str__(self):
         return self.user.username + ' which id:' + Confirm.get_which_label(self.which)
 
 
 class Roles(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    roles = JSONField(default=dict)
+    roles = models.IntegerField()
     updated_at = models.DateTimeField(auto_now=True)
 
-    @staticmethod
-    def extract_and_update_roles(tree_node):
-        new_roles = {}
-        units = tree_node['children']
-        for unit in units:
-            roles = unit['children']
-            for role in roles:
-                if 'children' in role:
-                    users = role['children']
-                    for user in users:
-                        user_id = user['staff_id']
-                        if str(user_id) not in new_roles:
-                            new_roles[str(user_id)] = []
-                        new_roles[str(user_id)].append(role['id'])
+    class Meta:
+        unique_together = ('user', 'roles')
 
-        # @todo rollback if any error occurred!
+    # @staticmethod
+    # def extract_and_update_roles(tree_node):
+    #     new_roles = {}
+    #     units = tree_node['children']
+    #     for unit in units:
+    #         roles = unit['children']
+    #         for role in roles:
+    #             if 'children' in role:
+    #                 users = role['children']
+    #                 for user in users:
+    #                     user_id = user['staff_id']
+    #                     if str(user_id) not in new_roles:
+    #                         new_roles[str(user_id)] = []
+    #                     new_roles[str(user_id)].append(role['id'])
 
-        # remove old roles
-        Roles.objects.all().delete()
+    # @todo rollback if any error occurred!
 
-        # add new roles
-        for user_id in new_roles:
-            Roles(user_id=user_id, roles=new_roles[user_id]).save()
+    # remove old roles
+    # Roles.objects.all().delete()
 
+    # add new roles
+    # for user_id in new_roles:
+    #     Roles(user_id=user_id, roles=new_roles[user_id]).save()
 
     @staticmethod
     def get_by_user(user_id=None):
@@ -110,6 +115,7 @@ class Roles(models.Model):
 
 class Preferences(extend.TrackModel):
     PREF_KEY_CONSTANTS = 'constants'
+
     class Meta:
         verbose_name = "تنظیم"
         verbose_name_plural = "تنظیمات"
@@ -136,7 +142,7 @@ class Preferences(extend.TrackModel):
             obj.key = key
 
         if type(value) == str:
-            obj.value = {'__string__':value}
+            obj.value = {'__string__': value}
 
         obj.value = value
         obj.save()
