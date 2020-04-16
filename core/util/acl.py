@@ -210,10 +210,10 @@ allow('root')
 # ********************************************************************************
 # sales resources
 # allow every staff to access some resources
-allow(resources=[
-    'SampleViewSet',
-], privileges=[GET])
+# allow(resources=[
+#     'SampleViewSet',
+# ], privileges=[GET])
 
-allow([ROLE_ROOT], resources=['SampleViewSet'], privileges=[POST, PUT, PATCH, DELETE])
+# allow([ROLE_ROOT], resources=['SampleViewSet'], privileges=[POST, PUT, PATCH, DELETE])
 
-allow([ROLE_ROOT, ], 'SampleViewSet')
+#allow([ROLE_ROOT, ], 'SampleViewSet')
