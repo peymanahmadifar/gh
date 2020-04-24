@@ -122,7 +122,7 @@ INSTALLED_APPS += [
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        #'core.util.authentication.CustomTokenAuthentication',
+        'core.util.authentication.CustomTokenAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated'
@@ -130,8 +130,9 @@ REST_FRAMEWORK = {
 }
 
 CUSTOM_AUTHENTICATION = {
-    # minutes
+    # the lifetime unit is minutes
     'ACCESS_TOKEN_LIFETIME': 10,
     'REFRESH_TOKEN_LIFETIME': 120,
+
     'MAX_VALID_TOKEN_PER_USER': 5,
 }

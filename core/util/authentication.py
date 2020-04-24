@@ -9,6 +9,8 @@ from rest_framework import HTTP_HEADER_ENCODING, exceptions
 
 from rest_framework.authentication import BaseAuthentication
 
+from django.utils import timezone
+
 
 def get_authorization_header(request):
     """
@@ -77,7 +79,9 @@ class CustomTokenAuthentication(BaseAuthentication):
         except model.DoesNotExist:
             raise exceptions.AuthenticationFailed(_('Invalid token.'))
 
-        # if token.access_token_created_at - datetime.now()
+        if token.access_token_created_at + timezone.timedelta(minutes=token.access_token_lifetime) <= timezone.now():
+            raise exceptions.AuthenticationFailed(_('Token expired.'))
+
         if not token.user.is_active:
             raise exceptions.AuthenticationFailed(_('User inactive or deleted.'))
 

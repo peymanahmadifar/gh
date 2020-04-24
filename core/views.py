@@ -1,6 +1,7 @@
 from rest_framework import views, status
 from django.http import HttpResponse
 from rest_framework import serializers
+
 from .models import MobileTemp, Download
 
 from django.views.decorators.http import require_GET
@@ -40,6 +41,7 @@ obtain_auth_token = MyObtainAuthToken.as_view()
 
 
 class RefreshToken(ObtainAuthToken):
+    authentication_classes = ()
 
     def post(self, request, *args, **kwargs):
 

@@ -36,7 +36,7 @@ class Token(models.Model):
     refresh_token = models.CharField(max_length=60, primary_key=True)
     access_token_created_at = models.DateTimeField(auto_now=True)
     refresh_token_created_at = models.DateTimeField(auto_now_add=True)
-    # lifetimes unit is minutes
+    # The lifetime unit is minutes
     access_token_lifetime = models.IntegerField(default=settings.CUSTOM_AUTHENTICATION['ACCESS_TOKEN_LIFETIME'])
     refresh_token_lifetime = models.IntegerField(default=settings.CUSTOM_AUTHENTICATION['REFRESH_TOKEN_LIFETIME'])
     access_ip = models.GenericIPAddressField(verbose_name=_('آی‌پی'))
@@ -68,7 +68,11 @@ class Token(models.Model):
         user_token_count = Token.objects.filter(user=user).count()
         if user_token_count < settings.CUSTOM_AUTHENTICATION['MAX_VALID_TOKEN_PER_USER']:
             from .util.extra_helper import get_ip
-            token = Token.objects.create(user=user, access_ip=get_ip(request), agent=request.META['HTTP_USER_AGENT'])
+            token = Token.objects.create(
+                user=user,
+                access_ip=get_ip(request),
+                agent=request.META['HTTP_USER_AGENT']
+            )
             return token
         else:
             from rest_framework import serializers
