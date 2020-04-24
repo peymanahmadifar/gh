@@ -1,8 +1,15 @@
-from django.db import models
+import binascii
+import os
+
+from datetime import timedelta
+from django.db import models, IntegrityError
 from django.contrib.auth.models import User
 from django.contrib.postgres.fields import JSONField
 from .util import extend
 from django.utils.translation import ugettext_lazy as _
+from django.utils import timezone
+from django.conf import settings
+
 # extend.TrackModel = core.util.extend.extend.TrackModel
 # from .utils import extract_user_roles
 from django.db.models.signals import pre_save, post_save
@@ -19,6 +26,78 @@ from django.dispatch import receiver
 
 
 # Create your models here.
+
+class Token(models.Model):
+    """
+    The custom authorization token model.
+    """
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    access_token = models.CharField(max_length=60, unique=True)
+    refresh_token = models.CharField(max_length=60, primary_key=True)
+    access_token_created_at = models.DateTimeField(auto_now=True)
+    refresh_token_created_at = models.DateTimeField(auto_now_add=True)
+    # lifetimes unit is minutes
+    access_token_lifetime = models.IntegerField(default=settings.CUSTOM_AUTHENTICATION['ACCESS_TOKEN_LIFETIME'])
+    refresh_token_lifetime = models.IntegerField(default=settings.CUSTOM_AUTHENTICATION['REFRESH_TOKEN_LIFETIME'])
+    access_ip = models.GenericIPAddressField(verbose_name=_('آی‌پی'))
+    agent = models.CharField(max_length=80, default=None)
+
+    class Meta:
+        verbose_name = "توکن"
+        verbose_name_plural = "توکن‌ها"
+
+    def save(self, *args, **kwargs):
+        if not self.access_token or not self.refresh_token:
+            self.access_token = self.generate_key()
+            self.refresh_token = self.generate_key()
+        return super().save(*args, **kwargs)
+
+    def generate_key(self):
+        return binascii.hexlify(os.urandom(20)).decode()
+
+    @staticmethod
+    def remove_expired_tokens(user):
+        user_tokens = Token.objects.filter(user=user)
+        for token in user_tokens:
+            if (token.refresh_token_created_at + timedelta(minutes=token.refresh_token_lifetime)) <= timezone.now():
+                token.delete()
+
+    @staticmethod
+    def get_token(request, user):
+        Token.remove_expired_tokens(user)
+        user_token_count = Token.objects.filter(user=user).count()
+        if user_token_count < settings.CUSTOM_AUTHENTICATION['MAX_VALID_TOKEN_PER_USER']:
+            from .util.extra_helper import get_ip
+            token = Token.objects.create(user=user, access_ip=get_ip(request), agent=request.META['HTTP_USER_AGENT'])
+            return token
+        else:
+            from rest_framework import serializers
+            msg = _('You have reached the maximum number of active tokens".')
+            raise serializers.ValidationError(msg, code='authorization')
+
+    def refresh_access_token(self):
+        from rest_framework.serializers import ValidationError
+        self.access_token = self.generate_key()
+        success = False
+        errors = 0
+        while not success:
+            try:
+                self.save()
+            except IntegrityError:
+                errors += 1
+                if errors > 3:
+                    msg = _('Too many attempts to refresh token.')
+                    raise ValidationError(msg, code='authorization')
+                else:
+                    self.access_token = self.generate_key()
+            else:
+                success = True
+        return self.access_token
+
+    def __str__(self):
+        return self.access_token
+
+
 class Confirm(extend.TrackModel):
     class Meta:
         verbose_name = "تأیید"

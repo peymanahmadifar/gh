@@ -1,135 +1,82 @@
-from django.shortcuts import render
-from rest_framework import views, generics, viewsets, status
-from django.http import HttpResponse, HttpResponseRedirect, HttpResponseBadRequest, HttpResponseNotFound
-from django.views.generic import TemplateView
+from rest_framework import views, status
 from django.http import HttpResponse
-from rest_framework.response import Response
-from django.template.loader import render_to_string
-from rest_framework import permissions, serializers
-from django.core.exceptions import ValidationError
-import json
-from .models import Preferences, Roles, MobileTemp, PrefConstants, Download, Confirm
-from .util.extend import (
-    DefaultsMixin,
-    DefaultsCustomerMixin,
-    MixinNoModelPermission,
-    StandardResultsSetPagination,
-    BigResultsSetPagination,
-    StaffPermission,
-    AjaxForm)
-from .util import extend
-#from core.util.helper import email_request_code
+from rest_framework import serializers
+from .models import MobileTemp, Download
 
-from rest_framework.renderers import TemplateHTMLRenderer, JSONRenderer
-from django.views.decorators.http import require_GET, require_POST
-from .serializers import (
-    RegistrationSerializer,
-    ConfirmMobileSerializer,
-    RequestCodeSerializer,
-    UserAccountSerializer,
-    ResetPasswordRequestSerializer,
-    ResetPasswordSerializer,
-    ChangePasswordSerializer,
-    StaffSerializer,
-    RequestConfirmEmailSerializer,
-    DownloadSerializer,
-    StaffByRoleSerializer
-)
-from .util import acl
+from django.views.decorators.http import require_GET
 from django.contrib.auth.models import User
-from .util.extra_helper import get_ip, play_filtering_form
+from .util.extra_helper import get_ip
 from .util.auth_helper import auth_token_response
 from django.utils.translation import ugettext_lazy as _
 from rest_framework.authtoken.models import Token
 
-
 # Create your views here.
 
 
-class RegistrationView(generics.RetrieveAPIView, generics.CreateAPIView):
-    renderer_classes = [TemplateHTMLRenderer, JSONRenderer]
-    permission_classes = ()
-    serializer_class = RegistrationSerializer
-    # queryset = Customer.objects.all()
-
-    # my_options = {
-    #       "styleByKey": {
-    #         "direction": {
-    #             "value":"ltr",
-    #             "fields":
-    #                 ["discount_static", "tel", "tel2", "tel3", "fax", "email"]
-    #         }
-    #     }
-    # }
+from rest_framework import exceptions
+from .models import Token
+from rest_framework.response import Response
+from rest_framework.authtoken.views import ObtainAuthToken
+from .util.authentication import get_authorization_header, CustomTokenAuthentication
+from django.utils import timezone
 
 
-class ConfirmMobileView(generics.CreateAPIView):
-    # renderer_classes = [TemplateHTMLRenderer, JSONRenderer]
-    # permission_classes = ()
-    permission_classes = ()
-    serializer_class = ConfirmMobileSerializer
+class MyObtainAuthToken(ObtainAuthToken):
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.serializer_class(data=request.data,
+                                           context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        user = serializer.validated_data['user']
+        token = Token.get_token(request, user)
+
+        return Response({
+            'access_token': token.access_token,
+            'refresh_token': token.refresh_token
+        })
 
 
-class StaffsByRoleView(MixinNoModelPermission, views.APIView):
-    def get(self, request, role):
-        users = Roles.get_users_by_role(role)
-        return Response(StaffByRoleSerializer(many=True).to_representation(users))
+obtain_auth_token = MyObtainAuthToken.as_view()
 
 
-class UpdateRolesView(MixinNoModelPermission, views.APIView):
-    # renderer_classes = [TemplateHTMLRenderer, JSONRenderer]
-    # permission_classes = ()
-    # permission_classes = ()
-    # serializer_class = RequestCodeSerializer
-    def get(self, request):
-        json_str = render_to_string('core/roles.json')
-        json_obj = json.loads(json_str)
-        return Response(Preferences.get('roles', json_obj))
+class RefreshToken(ObtainAuthToken):
 
-    def put(self, request):
-        # save data to preferences model
-        Preferences.set('roles', request.data)
-        Roles.extract_and_update_roles(request.data)
-        return Response(dict(status='ok', msg='roles saved to preferences'));
+    def post(self, request, *args, **kwargs):
 
+        auth = get_authorization_header(request).split()
 
-class GetConstantsView(MixinNoModelPermission, views.APIView):
-    permission_classes = (permissions.IsAuthenticated,)
+        if not auth or auth[0].lower() != CustomTokenAuthentication.keyword.lower().encode():
+            msg = _('Refresh token is required.')
+            raise exceptions.AuthenticationFailed(msg)
 
-    def get(self, request):
-        # json_str = render_to_string('core/roles.json')
-        # json_obj = json.loads(json_str)
-        # return Response(Preferences.get('roles', json_obj));
-        res = {
-            'acl': {
-                'roles': acl.get_roles()
-            },
-            'holidays': PrefConstants.get_holidays()
-        }
-        return Response(res)
+        if len(auth) == 1:
+            msg = _('Invalid token header. No credentials provided.')
+            raise exceptions.AuthenticationFailed(msg)
+        elif len(auth) > 2:
+            msg = _('Invalid token header. Token string should not contain spaces.')
+            raise exceptions.AuthenticationFailed(msg)
 
+        try:
+            refresh_token = auth[1].decode()
+        except UnicodeError:
+            msg = _('Invalid token header. Token string should not contain invalid characters.')
+            raise exceptions.AuthenticationFailed(msg)
 
-class MobileConstantsView(views.APIView):
-    permission_classes = ()
+        try:
+            token = Token.objects.select_related('user').get(refresh_token=refresh_token)
+        except Token.DoesNotExist:
+            raise exceptions.AuthenticationFailed(_('Invalid token.'))
 
-    def get(self, request):
-        # return Response({})
-        # return Response({'a':1, 'b':1, 'c':1, 'g':1})
-        return Response(PrefConstants.get())
+        if token.refresh_token_created_at + timezone.timedelta(minutes=token.refresh_token_lifetime) <= timezone.now():
+            token.delete()
+            raise exceptions.AuthenticationFailed(_('Token expired.'))
+        access_token = token.refresh_access_token()
+        return Response({
+            'access_token': access_token,
+        })
 
 
-class ManageConstantsView(MixinNoModelPermission, views.APIView):
-    # renderer_classes = [JSONRenderer]
-    def get(self, request):
-        return Response(PrefConstants.get())
-
-    def patch(self, request):
-        # save data to preferences model
-        constants = PrefConstants.get()
-        constants.update(request.data)
-        PrefConstants.set(constants)
-        return self.get(request)
-        # return Response(dict(status='ok', msg='constants saved to preferences'));
+refresh_token = RefreshToken.as_view()
 
 
 class LoginWithTokenView(views.APIView):
@@ -206,126 +153,6 @@ class CheckNumberView(views.APIView):
         # return suitable result
         return Response(result)
 
-
-class ResetPasswordRequestView(generics.CreateAPIView):
-    permission_classes = ()
-    serializer_class = ResetPasswordRequestSerializer
-
-
-class ResetPasswordView(generics.CreateAPIView):
-    permission_classes = ()
-    serializer_class = ResetPasswordSerializer
-
-
-class ChangePasswordView(generics.CreateAPIView):
-    serializer_class = ChangePasswordSerializer
-
-
-@require_GET
-def ConfirmEmailView(request):
-    address = request.GET.get('address', None)
-    code = request.GET.get('code', None)
-    if not address or not code:
-        return HttpResponseBadRequest('')
-
-    # check email and code
-    try:
-        confirm = Confirm.objects.get(user__email=address, which=Confirm.WHICH_EMAIL)
-    except Confirm.DoesNotExist as e:
-        return HttpResponseBadRequest('<h1>Bad Request</h1>')
-
-    # return HttpResponse(str([confirm.code, code]))
-    if confirm.code == code:
-        # confirm email
-        confirm.user.is_active = True
-        confirm.user.customer.email_confirm = True
-        confirm.user.save()
-        confirm.user.customer.save()
-        # remove confirm record and confirm user
-        confirm.delete()
-
-        return HttpResponseRedirect('/inbox/?confirmed')
-    else:
-        return HttpResponseNotFound('<h1>Page not found</h1>')
-
-
-class RequestCodeView(generics.CreateAPIView):
-    # renderer_classes = [TemplateHTMLRenderer, JSONRenderer]
-    # permission_classes = ()
-    permission_classes = ()
-    serializer_class = RequestCodeSerializer
-
-
-class UserAccountView(MixinNoModelPermission, extend.RetrieveUpdateViewSet):
-    """
-    Admin must be able to edit username, password and activity status of the user!
-    This feature specially will be used to edit old customers' accounts
-    """
-    queryset = User.objects.all()
-    serializer_class = UserAccountSerializer
-
-
-class StaffCoreViewSet(DefaultsMixin, viewsets.ModelViewSet):
-    """API endpoint for listing and CREATING bills."""
-    # queryset = User.objects.order_by('id')
-    serializer_class = StaffSerializer
-    pagination_class = BigResultsSetPagination
-
-    def get_queryset(self):
-        """
-        Optionally restricts the returned purchases to a given user,
-        by filtering against a `username` query parameter in the URL.
-        """
-        queryset = User.objects.all()
-        queryset = queryset.order_by('-id')
-        queryset = play_filtering_form(queryset, self.request.query_params)
-        queryset = queryset.filter(is_staff=True)
-        queryset = queryset.exclude(staff=None)
-        return queryset
-
-
-class DownloadViewSet(DefaultsMixin, viewsets.ReadOnlyModelViewSet):
-    serializer_class = DownloadSerializer
-    pagination_class = StandardResultsSetPagination
-
-    def get_queryset(self):
-        queryset = Download.objects.all()
-        queryset = queryset.order_by('-id')
-        queryset = play_filtering_form(queryset, self.request.query_params)
-        return queryset
-
-
-class RequestConfirmEmailView(DefaultsCustomerMixin, views.APIView):
-    def get(self, request):
-        serializer = RequestConfirmEmailSerializer(request.user)
-        return Response(serializer.data)
-
-    def post(self, request):
-        email = request.user.email
-        serializer = RequestConfirmEmailSerializer(data = request.data, instance = request.user)
-        serializer.is_valid(True)
-        validated_data = serializer.validated_data
-        if not validated_data.get('email') and not email:
-            raise serializers.ValidationError({'email':_('This field is required.')})
-        if validated_data.get('email', email) == email and request.user.customer.email_confirm:
-            raise serializers.ValidationError({'email': _('This email address already confirmed!')})
-        email = validated_data.get('email', email)
-
-        # update email
-        user = request.user
-        user.email = email
-        user.save()
-
-        # unconfirm
-        customer = user.customer
-        customer.email_confirm = False
-        customer.save()
-
-        # send confirmation email
-        #camp = email_request_code(user, email)
-        data = serializer.data
-        #data['request_id'] = camp.id
-        return Response(data)
 
 @require_GET
 def FileDownloadView(request, url):

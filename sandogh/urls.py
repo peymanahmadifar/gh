@@ -1,13 +1,14 @@
 from django.urls import path, include
 from rest_framework import routers
 from . import views
-from rest_framework.authtoken import views as authView
+from core.views import obtain_auth_token, refresh_token
+from django.views.decorators.csrf import csrf_exempt
 
 router = routers.DefaultRouter()
 router.register('lenders', views.LenderViewSet)
 
 urlpatterns = [
     path('', include(router.urls)),
-    # path('api-auth/', include('rest_framework.urls', namespace='rest_framework'))
-    path('api-auth/', authView.obtain_auth_token)
+    path('get-token/', obtain_auth_token),
+    path('refresh-token/', refresh_token),
 ]
