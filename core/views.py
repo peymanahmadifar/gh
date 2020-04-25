@@ -87,6 +87,16 @@ class RefreshToken(ObtainAuthToken):
 refresh_token = RefreshToken.as_view()
 
 
+class Logout(views.APIView):
+
+    def get(self, request, format=None):
+        request.auth.delete()
+        return Response(status=status.HTTP_200_OK)
+
+
+logout = Logout.as_view()
+
+
 class LoginWithTokenView(views.APIView):
     permission_classes = ()
 
