@@ -102,6 +102,19 @@ class Token(models.Model):
         return self.access_token
 
 
+class UserMeta(models.Model):
+    SIMPLE_VERIFICATION = 0
+    GA_VERIFICATION = 1
+    SMS_VERIFICATION = 2
+
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    national_id = models.CharField(max_length=10, default='')
+    mobile = models.CharField(max_length=11, default='')
+    mobile_verified = models.BooleanField(default=False)
+    email_verified = models.BooleanField(default=False)
+    veriffication_type = models.IntegerField(default=SIMPLE_VERIFICATION)
+
+
 class Confirm(extend.TrackModel):
     class Meta:
         verbose_name = "تأیید"
