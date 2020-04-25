@@ -33,7 +33,11 @@ class MyObtainAuthToken(ObtainAuthToken):
 
         return Response({
             'access_token': token.access_token,
-            'refresh_token': token.refresh_token
+            'refresh_token': token.refresh_token,
+            'access_token_expiration': token.access_token_created_at + timezone.timedelta(
+                minutes=token.access_token_lifetime),
+            'refresh_token_expiration': token.refresh_token_created_at + timezone.timedelta(
+                minutes=token.refresh_token_lifetime)
         })
 
 
@@ -72,9 +76,11 @@ class RefreshToken(ObtainAuthToken):
         if token.refresh_token_created_at + timezone.timedelta(minutes=token.refresh_token_lifetime) <= timezone.now():
             token.delete()
             raise exceptions.AuthenticationFailed(_('Token expired.'))
-        access_token = token.refresh_access_token()
+        token.refresh_access_token()
         return Response({
-            'access_token': access_token,
+            'access_token': token.access_token,
+            'access_token_expiration': token.access_token_created_at + timezone.timedelta(
+                minutes=token.access_token_lifetime),
         })
 
 
