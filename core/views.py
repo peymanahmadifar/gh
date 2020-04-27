@@ -1,29 +1,51 @@
-from rest_framework import views, status
+from django.utils import timezone
 from django.http import HttpResponse
-from rest_framework import serializers
-
-from .models import MobileTemp, Download
-
+from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.http import require_GET
 from django.contrib.auth.models import User
-from .util.extra_helper import get_ip
-from .util.auth_helper import auth_token_response
-from django.utils.translation import ugettext_lazy as _
-from rest_framework.authtoken.models import Token
 
-# Create your views here.
-
-
-from rest_framework import exceptions
-from .models import Token
+from rest_framework import views, status, exceptions, serializers
 from rest_framework.response import Response
 from rest_framework.authtoken.views import ObtainAuthToken
+
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
+
+from .util.extra_helper import get_ip
+from .util.auth_helper import auth_token_response
 from .util.authentication import get_authorization_header, CustomTokenAuthentication
-from django.utils import timezone
+from .models import Token, MobileTemp, Download
 
 
 class MyObtainAuthToken(ObtainAuthToken):
 
+    @swagger_auto_schema(
+        # operation_description="",
+        # operation_summary="",
+        # request_body=AuthTokenSerializer,
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            required=['username', 'password'],
+            properties={
+                'username': openapi.Schema(type=openapi.TYPE_STRING),
+                'password': openapi.Schema(type=openapi.TYPE_STRING)
+            },
+        ),
+        responses={
+            status.HTTP_200_OK: openapi.Schema(
+                type=openapi.TYPE_OBJECT,
+                properties={
+                    'access_token': openapi.Schema(type=openapi.TYPE_STRING),
+                    'refresh_token': openapi.Schema(type=openapi.TYPE_STRING),
+                    'access_token_expiration': openapi.Schema(type=openapi.TYPE_STRING),
+                    'refresh_token_expiration': openapi.Schema(type=openapi.TYPE_STRING)
+                },
+            ),
+            #     status.HTTP_204_NO_CONTENT: openapi.Response(
+            #         description="this should not crash (response object with no schema)"
+            #     )
+        },
+    )
     def post(self, request, *args, **kwargs):
         serializer = self.serializer_class(data=request.data,
                                            context={'request': request})
@@ -34,10 +56,10 @@ class MyObtainAuthToken(ObtainAuthToken):
         return Response({
             'access_token': token.access_token,
             'refresh_token': token.refresh_token,
-            'access_token_expiration': token.access_token_created_at + timezone.timedelta(
-                minutes=token.access_token_lifetime),
-            'refresh_token_expiration': token.refresh_token_created_at + timezone.timedelta(
-                minutes=token.refresh_token_lifetime)
+            'access_token_expiration': str(token.access_token_created_at + timezone.timedelta(
+                minutes=token.access_token_lifetime)),
+            'refresh_token_expiration': str(token.refresh_token_created_at + timezone.timedelta(
+                minutes=token.refresh_token_lifetime))
         })
 
 
@@ -47,6 +69,25 @@ obtain_auth_token = MyObtainAuthToken.as_view()
 class RefreshToken(ObtainAuthToken):
     authentication_classes = ()
 
+    @swagger_auto_schema(
+        manual_parameters=[
+            openapi.Parameter(
+                name='Authorization', in_=openapi.IN_HEADER,
+                type=openapi.TYPE_STRING,
+                description="format : \"Token 5f7da993e4688402a460ac0ba2bff3e8045385bc\"",
+                required=True
+            ),
+        ],
+        responses={
+            status.HTTP_200_OK: openapi.Schema(
+                type=openapi.TYPE_OBJECT,
+                properties={
+                    'access_token': openapi.Schema(type=openapi.TYPE_STRING),
+                    'access_token_expiration': openapi.Schema(type=openapi.TYPE_STRING, description='datetime'),
+                },
+            ),
+        },
+    )
     def post(self, request, *args, **kwargs):
 
         auth = get_authorization_header(request).split()
@@ -79,8 +120,8 @@ class RefreshToken(ObtainAuthToken):
         token.refresh_access_token()
         return Response({
             'access_token': token.access_token,
-            'access_token_expiration': token.access_token_created_at + timezone.timedelta(
-                minutes=token.access_token_lifetime),
+            'access_token_expiration': str(token.access_token_created_at + timezone.timedelta(
+                minutes=token.access_token_lifetime)),
         })
 
 
@@ -89,6 +130,16 @@ refresh_token = RefreshToken.as_view()
 
 class Logout(views.APIView):
 
+    @swagger_auto_schema(
+        manual_parameters=[
+            openapi.Parameter(
+                name='Authorization', in_=openapi.IN_HEADER,
+                type=openapi.TYPE_STRING,
+                description="format : \"Token 5f7da993e4688402a460ac0ba2bff3e8045385bc\"",
+                required=True
+            ),
+        ],
+    )
     def get(self, request, format=None):
         request.auth.delete()
         return Response(status=status.HTTP_200_OK)
