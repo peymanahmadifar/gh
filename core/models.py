@@ -32,7 +32,7 @@ class Token(models.Model):
     The custom authorization token model.
     """
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    access_token = models.CharField(max_length=60, unique=True)
+    access_token = models.CharField(max_length=60, db_index=True, unique=True)
     refresh_token = models.CharField(max_length=60, primary_key=True)
     access_token_created_at = models.DateTimeField(auto_now=True)
     refresh_token_created_at = models.DateTimeField(auto_now_add=True)
@@ -108,8 +108,8 @@ class UserMeta(models.Model):
     SMS_VERIFICATION = 2
 
     user = models.OneToOneField(User, on_delete=models.CASCADE)
-    national_id = models.CharField(max_length=10, default='')
-    mobile = models.CharField(max_length=11, default='')
+    national_id = models.CharField(max_length=10, unique=True, default='')
+    mobile = models.CharField(max_length=11, unique=True, default='')
     mobile_verified = models.BooleanField(default=False)
     email_verified = models.BooleanField(default=False)
     veriffication_type = models.IntegerField(default=SIMPLE_VERIFICATION)
