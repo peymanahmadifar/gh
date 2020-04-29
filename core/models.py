@@ -136,7 +136,10 @@ class VerificationGa(models.Model):
             VerificationGa.objects.filter(user=user).delete()
             user_ga = VerificationGa(user=user, key=key)
             user_ga.save()
-        return VerificationGa.GA_URL + pyotp.totp.TOTP(key).provisioning_uri(name=VerificationGa.GA_NAME)
+        return {
+            'key': key,
+            'url': VerificationGa.GA_URL + pyotp.totp.TOTP(key).provisioning_uri(name=VerificationGa.GA_NAME)
+        }
 
 
 class VerificationSms(models.Model):

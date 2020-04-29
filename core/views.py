@@ -155,7 +155,8 @@ class EnableGa(views.APIView):
             status.HTTP_200_OK: openapi.Schema(
                 type=openapi.TYPE_OBJECT,
                 properties={
-                    'ga_url': openapi.Schema(type=openapi.TYPE_STRING),
+                    'key': openapi.Schema(type=openapi.TYPE_STRING),
+                    'url': openapi.Schema(type=openapi.TYPE_STRING),
                 },
             ),
         },
@@ -169,12 +170,12 @@ class EnableGa(views.APIView):
         ga_enabled = userMeta.veriffication_type == UserMeta.GA_VERIFICATION
         if ga_enabled:
             # raise exceptions.APIException(_('Google Authentication already is enabled.'))
-            url = VerificationGa.enable_user_ga(request.user, True)
+            result = VerificationGa.enable_user_ga(request.user, True)
         else:
-            url = VerificationGa.enable_user_ga(request.user)
+            result = VerificationGa.enable_user_ga(request.user)
             userMeta.veriffication_type = userMeta.GA_VERIFICATION
             userMeta.save()
-        return Response({'ga_url': url}, status=status.HTTP_200_OK)
+        return Response(result, status=status.HTTP_200_OK)
 
 
 class DisableGa(views.APIView):
