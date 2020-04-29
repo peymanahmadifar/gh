@@ -3,6 +3,8 @@ from django.utils.translation import gettext_lazy as _
 
 from rest_framework import serializers
 
+from .models import UserMeta, VerificationGa
+
 
 class LoginSerializer(serializers.Serializer):
     username = serializers.CharField(label=_("Username"))
@@ -29,9 +31,19 @@ class LoginSerializer(serializers.Serializer):
             # users. (Assuming the default ModelBackend authentication
             # backend.)
             if user:
-                if user.usermeta.veriffication_type == user.usermeta.GA_VERIFICATION:
+                try:
+                    userMeta = user.usermeta
+                except UserMeta.DoesNotExist:
+                    msg = _('UserMeta does not exist.')
+                    raise serializers.ValidationError(msg, code='authorization')
+                if userMeta.veriffication_type == UserMeta.GA_VERIFICATION:
                     if ga_key:
-                        if not user.verificationga.verify(ga_key):
+                        try:
+                            user_ga = user.verificationga
+                        except VerificationGa.DoesNotExist:
+                            msg = _('The GA is enabled but VerificationGa does not exist.')
+                            raise serializers.ValidationError(msg, code='authorization')
+                        if not user_ga.verify(ga_key):
                             msg = _('Google authentication key is wrong.')
                             raise serializers.ValidationError(msg, code='authorization')
                     else:
