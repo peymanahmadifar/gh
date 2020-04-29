@@ -1,5 +1,6 @@
 import binascii
 import os
+import pyotp
 
 from datetime import timedelta
 from django.db import models, IntegrityError
@@ -113,6 +114,35 @@ class UserMeta(models.Model):
     mobile_verified = models.BooleanField(default=False)
     email_verified = models.BooleanField(default=False)
     veriffication_type = models.IntegerField(default=SIMPLE_VERIFICATION)
+
+
+class VerificationGa(models.Model):
+    GA_NAME = 'Saduq'
+    GA_URL = 'https://chart.googleapis.com/chart?chs=200x200&chld=M|0&cht=qr&chl='
+
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    key = models.CharField(max_length=16)
+
+    def verify(self, key):
+        totp = pyotp.TOTP(self.key)
+        return totp.verify(key)
+
+    @staticmethod
+    def enable_user_ga(user, onlyGetUrl=False):
+        if onlyGetUrl:
+            key = user.verificationga.key
+        else:
+            key = pyotp.random_base32()
+            VerificationGa.objects.filter(user=user).delete()
+            user_ga = VerificationGa(user=user, key=key)
+            user_ga.save()
+        return VerificationGa.GA_URL + pyotp.totp.TOTP(key).provisioning_uri(name=VerificationGa.GA_NAME)
+
+
+class VerificationSms(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    code = models.CharField(max_length=10)
+    created_at = models.DateTimeField(auto_now_add=True)
 
 
 class Confirm(extend.TrackModel):

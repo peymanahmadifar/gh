@@ -3,6 +3,7 @@ from django.http import HttpResponse
 from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.http import require_GET
 from django.contrib.auth.models import User
+from django.core.exceptions import ObjectDoesNotExist
 
 from rest_framework import views, status, exceptions, serializers
 from rest_framework.response import Response
@@ -14,8 +15,8 @@ from drf_yasg import openapi
 from .util.extra_helper import get_ip
 from .util.auth_helper import auth_token_response
 from .util.authentication import get_authorization_header, CustomTokenAuthentication
-from .models import Token, MobileTemp, Download
-
+from .models import Token, UserMeta, VerificationGa, MobileTemp, Download
+from core.serializers import LoginSerializer
 
 class MyObtainAuthToken(ObtainAuthToken):
 
@@ -47,7 +48,7 @@ class MyObtainAuthToken(ObtainAuthToken):
         },
     )
     def post(self, request, *args, **kwargs):
-        serializer = self.serializer_class(data=request.data,
+        serializer = LoginSerializer(data=request.data,
                                            context={'request': request})
         serializer.is_valid(raise_exception=True)
         user = serializer.validated_data['user']
@@ -61,9 +62,6 @@ class MyObtainAuthToken(ObtainAuthToken):
             'refresh_token_expiration': str(token.refresh_token_created_at + timezone.timedelta(
                 minutes=token.refresh_token_lifetime))
         })
-
-
-obtain_auth_token = MyObtainAuthToken.as_view()
 
 
 class RefreshToken(ObtainAuthToken):
@@ -125,9 +123,6 @@ class RefreshToken(ObtainAuthToken):
         })
 
 
-refresh_token = RefreshToken.as_view()
-
-
 class Logout(views.APIView):
 
     @swagger_auto_schema(
@@ -145,7 +140,68 @@ class Logout(views.APIView):
         return Response(status=status.HTTP_200_OK)
 
 
-logout = Logout.as_view()
+class EnableGa(views.APIView):
+
+    @swagger_auto_schema(
+        operation_description='It will return the google authentication url if this already is enabled.',
+        manual_parameters=[
+            openapi.Parameter(
+                name='Authorization', in_=openapi.IN_HEADER,
+                type=openapi.TYPE_STRING,
+                required=True
+            ),
+        ],
+        responses={
+            status.HTTP_200_OK: openapi.Schema(
+                type=openapi.TYPE_OBJECT,
+                properties={
+                    'ga_url': openapi.Schema(type=openapi.TYPE_STRING),
+                },
+            ),
+        },
+    )
+    def get(self, request, format=None):
+        try:
+            userMeta = request.user.usermeta
+        except ObjectDoesNotExist:
+            msg = _('UserMeta does not exist.')
+            raise exceptions.APIException(msg)
+        ga_enabled = userMeta.veriffication_type == UserMeta.GA_VERIFICATION
+        if ga_enabled:
+            # raise exceptions.APIException(_('Google Authentication already is enabled.'))
+            url = VerificationGa.enable_user_ga(request.user, True)
+        else:
+            url = VerificationGa.enable_user_ga(request.user)
+            userMeta.veriffication_type = userMeta.GA_VERIFICATION
+            userMeta.save()
+        return Response({'ga_url': url}, status=status.HTTP_200_OK)
+
+
+class DisableGa(views.APIView):
+
+    @swagger_auto_schema(
+        manual_parameters=[
+            openapi.Parameter(
+                name='Authorization', in_=openapi.IN_HEADER,
+                type=openapi.TYPE_STRING,
+                required=True
+            ),
+        ],
+    )
+    def get(self, request, format=None):
+        try:
+            userMeta = request.user.usermeta
+        except ObjectDoesNotExist:
+            msg = _('UserMeta does not exist.')
+            raise exceptions.APIException(msg)
+        ga_enabled = userMeta.veriffication_type == UserMeta.GA_VERIFICATION
+        if ga_enabled:
+            userMeta.veriffication_type = UserMeta.SIMPLE_VERIFICATION
+            userMeta.save()
+            VerificationGa.objects.filter(user=request.user).delete()
+        else:
+            pass
+        return Response(status=status.HTTP_200_OK)
 
 
 class LoginWithTokenView(views.APIView):
