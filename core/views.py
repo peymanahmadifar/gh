@@ -30,7 +30,9 @@ class MyObtainAuthToken(ObtainAuthToken):
             required=['username', 'password'],
             properties={
                 'username': openapi.Schema(type=openapi.TYPE_STRING),
-                'password': openapi.Schema(type=openapi.TYPE_STRING)
+                'password': openapi.Schema(type=openapi.TYPE_STRING),
+                'ga_key': openapi.Schema(type=openapi.TYPE_STRING,
+                                         description='It will be required if the user enables the Google Authentication'),
             },
         ),
         responses={
@@ -69,14 +71,7 @@ class RefreshToken(ObtainAuthToken):
     authentication_classes = ()
 
     @swagger_auto_schema(
-        manual_parameters=[
-            openapi.Parameter(
-                name='Authorization', in_=openapi.IN_HEADER,
-                type=openapi.TYPE_STRING,
-                description="format : \"Token 5f7da993e4688402a460ac0ba2bff3e8045385bc\"",
-                required=True
-            ),
-        ],
+        operation_description='It takes refresh_token for authorization',
         responses={
             status.HTTP_200_OK: openapi.Schema(
                 type=openapi.TYPE_OBJECT,
@@ -126,16 +121,6 @@ class RefreshToken(ObtainAuthToken):
 
 class Logout(views.APIView):
 
-    @swagger_auto_schema(
-        manual_parameters=[
-            openapi.Parameter(
-                name='Authorization', in_=openapi.IN_HEADER,
-                type=openapi.TYPE_STRING,
-                description="format : \"Token 5f7da993e4688402a460ac0ba2bff3e8045385bc\"",
-                required=True
-            ),
-        ],
-    )
     def get(self, request, format=None):
         request.auth.delete()
         return Response(status=status.HTTP_200_OK)
@@ -145,13 +130,6 @@ class EnableGa(views.APIView):
 
     @swagger_auto_schema(
         operation_description='It will return the google authentication url if this already is enabled.',
-        manual_parameters=[
-            openapi.Parameter(
-                name='Authorization', in_=openapi.IN_HEADER,
-                type=openapi.TYPE_STRING,
-                required=True
-            ),
-        ],
         responses={
             status.HTTP_200_OK: openapi.Schema(
                 type=openapi.TYPE_OBJECT,
@@ -181,15 +159,6 @@ class EnableGa(views.APIView):
 
 class DisableGa(views.APIView):
 
-    @swagger_auto_schema(
-        manual_parameters=[
-            openapi.Parameter(
-                name='Authorization', in_=openapi.IN_HEADER,
-                type=openapi.TYPE_STRING,
-                required=True
-            ),
-        ],
-    )
     def get(self, request, format=None):
         try:
             userMeta = request.user.usermeta
@@ -209,13 +178,6 @@ class DisableGa(views.APIView):
 class VerificationType(views.APIView):
     @swagger_auto_schema(
         operation_description='Possible values ​​in the response : Primary, Google Authentication, Sms',
-        manual_parameters=[
-            openapi.Parameter(
-                name='Authorization', in_=openapi.IN_HEADER,
-                type=openapi.TYPE_STRING,
-                required=True
-            ),
-        ],
         responses={
             status.HTTP_200_OK: openapi.Schema(
                 type=openapi.TYPE_OBJECT,

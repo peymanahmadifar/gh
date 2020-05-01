@@ -137,3 +137,13 @@ CUSTOM_AUTHENTICATION = {
 
     'MAX_VALID_TOKEN_PER_USER': 5,
 }
+
+SWAGGER_SETTINGS = {
+   'SECURITY_DEFINITIONS': {
+      'Token': {
+            'type': 'apiKey',
+            'name': 'Authorization',
+            'in': 'header'
+      }
+   }
+}
