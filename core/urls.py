@@ -10,4 +10,5 @@ urlpatterns = [
     path('logout/', views.Logout.as_view()),
     path('enable-ga/', views.EnableGa.as_view()),
     path('disable-ga/', views.DisableGa.as_view()),
+    path('get-verification-type/', views.VerificationType.as_view()),
 ]

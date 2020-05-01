@@ -18,6 +18,7 @@ from .util.authentication import get_authorization_header, CustomTokenAuthentica
 from .models import Token, UserMeta, VerificationGa, MobileTemp, Download
 from core.serializers import LoginSerializer
 
+
 class MyObtainAuthToken(ObtainAuthToken):
 
     @swagger_auto_schema(
@@ -49,7 +50,7 @@ class MyObtainAuthToken(ObtainAuthToken):
     )
     def post(self, request, *args, **kwargs):
         serializer = LoginSerializer(data=request.data,
-                                           context={'request': request})
+                                     context={'request': request})
         serializer.is_valid(raise_exception=True)
         user = serializer.validated_data['user']
         token = Token.get_token(request, user)
@@ -167,13 +168,13 @@ class EnableGa(views.APIView):
         except ObjectDoesNotExist:
             msg = _('UserMeta does not exist.')
             raise exceptions.APIException(msg)
-        ga_enabled = userMeta.veriffication_type == UserMeta.GA_VERIFICATION
+        ga_enabled = userMeta.verification_type == UserMeta.VERIFICATION_GA
         if ga_enabled:
             # raise exceptions.APIException(_('Google Authentication already is enabled.'))
             result = VerificationGa.enable_user_ga(request.user, True)
         else:
             result = VerificationGa.enable_user_ga(request.user)
-            userMeta.veriffication_type = userMeta.GA_VERIFICATION
+            userMeta.verification_type = UserMeta.VERIFICATION_GA
             userMeta.save()
         return Response(result, status=status.HTTP_200_OK)
 
@@ -195,14 +196,44 @@ class DisableGa(views.APIView):
         except ObjectDoesNotExist:
             msg = _('UserMeta does not exist.')
             raise exceptions.APIException(msg)
-        ga_enabled = userMeta.veriffication_type == UserMeta.GA_VERIFICATION
+        ga_enabled = userMeta.verification_type == UserMeta.VERIFICATION_GA
         if ga_enabled:
-            userMeta.veriffication_type = UserMeta.SIMPLE_VERIFICATION
+            userMeta.verification_type = UserMeta.VERIFICATION_PRIMARY
             userMeta.save()
             VerificationGa.objects.filter(user=request.user).delete()
         else:
             pass
         return Response(status=status.HTTP_200_OK)
+
+
+class VerificationType(views.APIView):
+    @swagger_auto_schema(
+        operation_description='Possible values ​​in the response : Primary, Google Authentication, Sms',
+        manual_parameters=[
+            openapi.Parameter(
+                name='Authorization', in_=openapi.IN_HEADER,
+                type=openapi.TYPE_STRING,
+                required=True
+            ),
+        ],
+        responses={
+            status.HTTP_200_OK: openapi.Schema(
+                type=openapi.TYPE_OBJECT,
+                properties={
+                    'verification_type': openapi.Schema(type=openapi.TYPE_STRING),
+                },
+            ),
+        },
+    )
+    def get(self, request, format=None):
+        try:
+            userMeta = request.user.usermeta
+        except ObjectDoesNotExist:
+            msg = _('UserMeta does not exist.')
+            raise exceptions.APIException(msg)
+        verification_type = UserMeta.VERIFICATION_CHOICES[userMeta.verification_type]
+
+        return Response({'verification_type': verification_type}, status=status.HTTP_200_OK)
 
 
 class LoginWithTokenView(views.APIView):

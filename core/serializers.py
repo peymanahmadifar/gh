@@ -36,7 +36,7 @@ class LoginSerializer(serializers.Serializer):
                 except UserMeta.DoesNotExist:
                     msg = _('UserMeta does not exist.')
                     raise serializers.ValidationError(msg, code='authorization')
-                if userMeta.veriffication_type == UserMeta.GA_VERIFICATION:
+                if userMeta.verification_type == UserMeta.VERIFICATION_GA:
                     if ga_key:
                         try:
                             user_ga = user.verificationga

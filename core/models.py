@@ -104,16 +104,21 @@ class Token(models.Model):
 
 
 class UserMeta(models.Model):
-    SIMPLE_VERIFICATION = 0
-    GA_VERIFICATION = 1
-    SMS_VERIFICATION = 2
+    VERIFICATION_PRIMARY = 0
+    VERIFICATION_GA = 1
+    VERIFICATION_SMS = 2
+    VERIFICATION_CHOICES = {
+        VERIFICATION_PRIMARY: _('Primary'),
+        VERIFICATION_GA: _('Google Authentication'),
+        VERIFICATION_SMS: _('Sms')
+    }
 
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     national_id = models.CharField(max_length=10, unique=True, default='')
     mobile = models.CharField(max_length=11, unique=True, default='')
     mobile_verified = models.BooleanField(default=False)
     email_verified = models.BooleanField(default=False)
-    veriffication_type = models.IntegerField(default=SIMPLE_VERIFICATION)
+    verification_type = models.IntegerField(default=VERIFICATION_PRIMARY)
 
 
 class VerificationGa(models.Model):
