@@ -153,6 +153,120 @@ class VerificationSms(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
 
+class Campaign(models.Model):
+    TYPE_SMS = 1
+    TYPE_EMAIL = 2
+    CHOICES_TYPE = (
+        (TYPE_SMS, 'SMS'),
+        (TYPE_EMAIL, 'Email')
+    )
+
+    STATUS_NEW = 0
+    STATUS_INPROGRESS = 1
+    STATUS_RETRY = 2
+    STATUS_FAILED = 9
+    STATUS_DONE = 10
+    CHOICES_STATUS = (
+        (STATUS_NEW, 'New'),
+        (STATUS_INPROGRESS, 'Inprogress'),
+        (STATUS_RETRY, 'Retry'),
+        (STATUS_FAILED, 'Failed'),
+        (STATUS_DONE, 'Done')
+    )
+
+    GTW_UNKNOWN = 0
+    GTW_DJANGO_SEND_MAIL = 1
+    GTW_PARSA_SMS = 11
+    GTW_PARSA_TEMPLATE_SMS = 12
+    CHOICES_GTW = (
+        (GTW_UNKNOWN, 'unknown gateway'),
+        (GTW_DJANGO_SEND_MAIL, 'django send mail'),
+        (GTW_PARSA_SMS, 'parsa sms'),
+        (GTW_PARSA_TEMPLATE_SMS, 'parsa template sms'),
+    )
+
+    title = models.CharField(max_length=100, blank=True, default='')
+    body = JSONField(default=dict)
+
+    # campaign type
+    ctype = models.IntegerField(choices=CHOICES_TYPE, default=TYPE_SMS)
+    status = models.IntegerField(choices=CHOICES_STATUS, default=STATUS_NEW)
+
+    # email address, cellphone number or ...
+    target = models.CharField(max_length=50)
+
+    # if you are sending to certain user set below attribute
+    # NOTE still you must set target based of the cellphone number of the user
+    target_user = models.ForeignKey(User, blank=True, null=True, on_delete=models.SET_NULL)
+    # request = models.ForeignKey('sales.Request', blank=True, null=True, on_delete=models.SET_NULL)
+
+    # this can be a foreign key, but it's possible to have two different models for
+    # emails and smses
+    target_group = models.IntegerField(blank=True, null=True)
+
+    start_at = models.DateTimeField(blank=True, null=True)
+    stop_at = models.DateTimeField(blank=True, null=True)
+    index = models.CharField(max_length=20, default='')
+    data = JSONField(default=dict)
+    # error = models.CharField(max_length=256, default='')
+
+    # gateway to parse results correctly!
+    gtw = models.IntegerField(choices=CHOICES_GTW, default=GTW_UNKNOWN)
+
+    @staticmethod
+    def send_sms(to='', group='', message=None, target_user=None, tpl=None, context=None, gtw=GTW_PARSA_SMS):
+        if not to and not group:
+            return
+        if not message and not context:
+            raise Exception("arguments are not valid.")
+        campaign = Campaign()
+        if message:
+            campaign.body = {"message": str(message)}
+        elif context:
+            campaign.body = {
+                'tpl': tpl,
+                'context': context,
+            }
+        campaign.target = to
+        if target_user:
+            campaign.target_user = target_user
+        # if request:
+        #     campaign.request = request
+        campaign.gtw = gtw
+        campaign.save()
+        return campaign
+
+    @staticmethod
+    def send_email(to='', group='', message=None, target_user=None, tpl=None, context=None, title='', request=None,
+                   gtw=GTW_DJANGO_SEND_MAIL):
+
+        if (not message and not tpl) or (not to and not group):
+            raise Exception("arguments are not valid.")
+
+        campaign = Campaign()
+        if message:
+            campaign.body = {"message": str(message)}
+        else:
+            campaign.body = {
+                'tpl': tpl,
+                'context': context,
+            }
+            #     {
+            # "email":"emamirazavi@yahoo.com",
+            # "code":"kokab",
+            # "tpl":"core/activation-email-test.html"}
+        campaign.target = to
+        campaign.ctype = Campaign.TYPE_EMAIL
+        if target_user:
+            campaign.target_user = target_user
+        if request:
+            campaign.request = request
+        campaign.title = title
+        campaign.gtw = gtw
+        campaign.save()
+        return campaign
+
+
 class Confirm(extend.TrackModel):
     class Meta:
         verbose_name = "تأیید"
