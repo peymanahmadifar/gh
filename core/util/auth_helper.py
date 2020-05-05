@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework.authtoken.views import ObtainAuthToken
 from django.contrib.auth.models import update_last_login
 
-from core.models import Roles
+from core.models import Role
 
 
 def auth_token_response(token):

@@ -304,50 +304,27 @@ class Confirm(extend.TrackModel):
         return self.user.username + ' which id:' + Confirm.get_which_label(self.which)
 
 
-class Roles(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    roles = models.IntegerField()
+class Role(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, db_index=True)
+    role = models.CharField(max_length=60)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        unique_together = ('user', 'roles')
+        unique_together = ('user', 'role')
 
-    # @staticmethod
-    # def extract_and_update_roles(tree_node):
-    #     new_roles = {}
-    #     units = tree_node['children']
-    #     for unit in units:
-    #         roles = unit['children']
-    #         for role in roles:
-    #             if 'children' in role:
-    #                 users = role['children']
-    #                 for user in users:
-    #                     user_id = user['staff_id']
-    #                     if str(user_id) not in new_roles:
-    #                         new_roles[str(user_id)] = []
-    #                     new_roles[str(user_id)].append(role['id'])
-
-    # @todo rollback if any error occurred!
-
-    # remove old roles
-    # Roles.objects.all().delete()
-
-    # add new roles
-    # for user_id in new_roles:
-    #     Roles(user_id=user_id, roles=new_roles[user_id]).save()
+    def __str__(self):
+        return self.role
 
     @staticmethod
     def get_by_user(user_id=None):
         roles = []
         try:
-            model = Roles.objects.get(user_id=user_id)
-            roles = model.roles
-        except Roles.DoesNotExist:
-            pass
+            for role in Role.objects.filter(user_id=user_id):
+                roles.append(role.role)
         finally:
-            # print(roles)
             if User.objects.get(id=user_id).is_superuser:
-                roles.append('root')
+                if not 'root' in roles:
+                    roles.append('root')
             if not roles:
                 roles.append('no_role')
         return roles
@@ -355,9 +332,8 @@ class Roles(models.Model):
     @staticmethod
     def get_users_by_role(role):
         users = []
-        for user_role in Roles.objects.all():
-            if role in user_role.roles:
-                users.append(user_role.user)
+        for user_role in Role.objects.filter(role=role):
+            users.append(user_role.user)
         return users
 
 

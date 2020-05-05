@@ -114,6 +114,36 @@ class Staff(extend.TrackModel):
         return (self.user.username if self.user else 'nouser') + ', ' + self.lender.name
 
 
+class Role(models.Model):
+    staff = models.ForeignKey(Staff, on_delete=models.CASCADE, db_index=True)
+    role = models.CharField(max_length=60)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('staff', 'role')
+
+    def __str__(self):
+        return self.role
+
+    @staticmethod
+    def get_by_staff(staff_id=None):
+        roles = []
+        try:
+            for role in Role.objects.filter(staff_id=staff_id):
+                roles.append(role.role)
+        finally:
+            if not roles:
+                roles.append('no_role')
+        return roles
+
+    @staticmethod
+    def get_staff_by_role(role):
+        staffs = []
+        for staff_role in Role.objects.filter(role=role):
+            staffs.append(staff_role.staff)
+        return staffs
+
+
 class Member(extend.TrackModel):
     class Meta:
         verbose_name = "عضو"

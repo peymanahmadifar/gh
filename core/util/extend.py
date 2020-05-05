@@ -109,7 +109,7 @@ class DefaultsMixin(object):
     permission_classes = (
         permissions.DjangoModelPermissions,
         StaffPermission,
-        acl.RolePermission
+        # acl.RolePermission
     )
     paginate_by = 25
     paginate_by_param = 'page_size'
@@ -172,7 +172,7 @@ class MixinNoModelPermission(object):
     permission_classes = (
         permissions.IsAuthenticated,
         StaffPermission,
-        acl.RolePermission
+        # acl.RolePermission
     )
     paginate_by = 25
     paginate_by_param = 'page_size'
@@ -184,7 +184,7 @@ class MixinTrackOwnerEditPermission(MixinNoModelPermission):
     permission_classes = (
         permissions.IsAuthenticated,
         StaffPermission,
-        acl.RolePermission,
+        # acl.RolePermission,
         TrackOwnerEditPermission
     )
 

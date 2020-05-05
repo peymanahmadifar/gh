@@ -11,12 +11,6 @@ resources = []
 roles = []
 permissions = {}
 
-# roles definitions
-ROLE_ROOT = 'root'
-ROLE_ADMIN_LOG = 'admin-log'
-
-NO_ROLE = 'no_role'
-
 # request methods
 GET = 'get'
 PUT = 'put'
@@ -25,40 +19,12 @@ POST = 'post'
 DELETE = 'delete'
 DOWNLOAD = 'download'
 
+
 # all privileges come here!
-PRIVILEGE_INVOICE_EDIT = 'invoice-edit'
+# PRIVILEGE_INVOICE_EDIT = 'invoice-edit'
 
 
-class RolePermission():
-    def has_permission(self, request, view):
-        if request.user and request.user.id:
-            return is_allowed(resource=view.__class__.__name__, privilege=request.method.lower(), request=request)
-        return False
-
-    def has_object_permission(self, request, view, obj):
-        return True
-
-
-# def GenerateRolePermission(roles):
-#     if type(roles) !=list:
-#         roles = [roles]
-#
-#     class MyRolePermission():
-#         def has_permission(self, request, view):
-#             if request.user and request.user.id:
-#                 return has_user_role()
-#                 # is_allowed(resource=view.__class__.__name__, request=request)
-#             return False
-#
-#         def has_object_permission(self, request, view, obj):
-#             return True
-#
-#     return MyRolePermission
-
-
-def is_allowed(resource, privilege=None, roles=None, request=None):
-    from core.models import Roles
-
+def is_allowed(resource, privilege=None, roles=None):
     # return false if the resource id does not exist.
     if not _has_resource(resource):
         raise Exception('resource %s does not exist! add it to core/util/acl.py' % resource)
@@ -67,9 +33,7 @@ def is_allowed(resource, privilege=None, roles=None, request=None):
         roles = [ROLE_TEST]
 
     if not roles:
-        roles = Roles.get_by_user(user_id=request.user.id)
-
-    logger.info('is_allowed: resource %s, user %s, roles: %s' % (resource, request.user.id, roles))
+        raise Exception('is_allowed: roles must be set')
 
     if resource in permissions:
         for role in roles:
@@ -78,12 +42,8 @@ def is_allowed(resource, privilege=None, roles=None, request=None):
             if role in permissions[resource]:
                 if not privilege or not permissions[resource][role]['privileges'] or privilege in \
                         permissions[resource][role]['privileges']:
-                    logger.info(
-                        'user %s, resource %s, roles: %s Yes, it is allowed!' % (request.user.id, resource, roles))
                     return True
-        logger.info('user %s, resource %s, roles: %s not allowed!' % (request.user.id, resource, roles))
         return False
-
     return False
 
 
@@ -166,54 +126,3 @@ def allow(roles=None, resources=None, privileges=None):
 
 def deny(roles=None, resources=None, privileges=None):
     allow_or_deny('deny', roles, resources, privileges)
-
-
-def has_user_role(role, user_id=None, request=None):
-    from core.models import Roles
-    if request:
-        user_id = request.user.id
-    if not user_id:
-        raise Exception('has_user_role: bad argument')
-    roles = Roles.get_by_user(user_id=user_id)
-    return role in roles
-
-
-# start to define resources and roles and accesses
-
-# def test():
-#     # add roles
-#     add_role('kiosk')
-#     # add resources
-#     add_resource('akbar')
-#     allow('kiosk', 'akbar', 'bezan')
-#     allow('kiosk', 'akbar')
-
-# *****************************************************************************
-# SALES APP ACLS
-
-# list and get ...
-# add_resource('SampleViewSet')
-
-
-# used for customers
-# add_resource('OrderDetailsView')
-# add_resource('OrderScheduleDeliveryView')
-
-# allow()
-add_role(NO_ROLE)
-add_role(ROLE_ROOT)
-
-# *********************************************************************************
-# allow root to access all of resources
-allow('root')
-
-# ********************************************************************************
-# sales resources
-# allow every staff to access some resources
-# allow(resources=[
-#     'SampleViewSet',
-# ], privileges=[GET])
-
-# allow([ROLE_ROOT], resources=['SampleViewSet'], privileges=[POST, PUT, PATCH, DELETE])
-
-#allow([ROLE_ROOT, ], 'SampleViewSet')
