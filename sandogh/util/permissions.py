@@ -10,6 +10,13 @@ ROLE_S_ROOT = 's_root'
 
 NO_ROLE = 'no_role'
 
+roles = [
+    ROLE_S_ROOT,
+    NO_ROLE,
+]
+
+add_role(roles)
+
 
 class StaffRolePermission():
     def has_permission(self, request, view):
@@ -26,7 +33,7 @@ def staff_is_allowed(resource, privilege=None, request=None):
         raise Exception('The Staff-Id must be sent in the request header')
     roles = Role.get_by_staff(staff_id=request.headers.get('Staff_Id'))
     logger.info('is_allowed: resource %s, staff %s, roles: %s' % (resource, request.headers.get('Staff_Id'), roles))
-    if is_allowed(resource, privilege=None, roles=None):
+    if is_allowed(resource, privilege, roles):
         logger.info(
             'staff %s, resource %s, roles: %s Yes, it is allowed!' % (request.headers.get('Staff_Id'), resource, roles))
         return True
@@ -43,7 +50,6 @@ def staff_has_role(role, staff_id=None, request=None):
         raise Exception('has_staff_role: bad argument')
     roles = Role.get_by_staff(staff_id=staff_id)
     return role in roles
-
 
 # start to define resources and roles and accesses
 
@@ -67,8 +73,7 @@ def staff_has_role(role, staff_id=None, request=None):
 # add_resource('OrderScheduleDeliveryView')
 
 # allow()
-add_role(NO_ROLE)
-# add_role(ROLE_ROOT)
+
 
 # *********************************************************************************
 # allow root to access all of resources

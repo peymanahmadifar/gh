@@ -67,9 +67,11 @@ def get_permissions():
     return permissions
 
 
-def add_role(id):
+def add_role(roles_array):
     global roles
-    roles.append(id)
+    for role in roles_array:
+        if not role in roles:
+            roles.append(role)
 
 
 def add_resource(id):

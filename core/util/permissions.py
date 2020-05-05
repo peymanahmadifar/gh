@@ -6,9 +6,16 @@ logger = logging.getLogger('django')
 
 # roles definitions
 ROLE_ROOT = 'root'
-ROLE_ADMIN_LOG = 'admin-log'
+# ROLE_ADMIN_LOG = 'admin-log'
 
 NO_ROLE = 'no_role'
+
+roles = [
+    ROLE_ROOT,
+    NO_ROLE,
+]
+
+add_role(roles)
 
 
 class UserRolePermission():
@@ -24,7 +31,7 @@ class UserRolePermission():
 def user_is_allowed(resource, privilege=None, request=None):
     roles = Role.get_by_user(user_id=request.user.id)
     logger.info('is_allowed: resource %s, user %s, roles: %s' % (resource, request.user.id, roles))
-    if is_allowed(resource, privilege=None, roles=None):
+    if is_allowed(resource, privilege, roles):
         logger.info(
             'user %s, resource %s, roles: %s Yes, it is allowed!' % (request.user.id, resource, roles))
         return True
@@ -61,11 +68,9 @@ def user_has_role(role, user_id=None, request=None):
 
 # used for customers
 # add_resource('OrderDetailsView')
-# add_resource('OrderScheduleDeliveryView')
+add_resource('LenderViewSet')
 
 # allow()
-add_role(NO_ROLE)
-add_role(ROLE_ROOT)
 
 # *********************************************************************************
 # allow root to access all of resources
