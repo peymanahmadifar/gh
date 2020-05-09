@@ -715,3 +715,13 @@ def set_updater_props_by_request(model, request, save=False):
             if save:
                 model.save()
     return model
+
+
+def get_from_header(key, request, raise_exception=True):
+    if not request.headers.get(key):
+        if raise_exception:
+            raise Exception('The %s must be set in the request header' % key)
+        else:
+            return None
+    else:
+        return int(request.headers.get(key))

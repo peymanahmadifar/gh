@@ -16,7 +16,7 @@ from .util.extra_helper import get_ip
 from .util.auth_helper import auth_token_response
 from .util.authentication import get_authorization_header, CustomTokenAuthentication
 from .models import Token, UserMeta, VerificationGa, MobileTemp, Download
-from core.serializers import LoginSerializer
+from .serializers import LoginSerializer
 
 
 class MyObtainAuthToken(ObtainAuthToken):

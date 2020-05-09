@@ -132,7 +132,7 @@ REST_FRAMEWORK = {
 
 CUSTOM_AUTHENTICATION = {
     # the lifetime unit is minutes
-    'ACCESS_TOKEN_LIFETIME': 10,
+    'ACCESS_TOKEN_LIFETIME': 120,  # set to 10 in production
     'REFRESH_TOKEN_LIFETIME': 120,
 
     'MAX_VALID_TOKEN_PER_USER': 5,

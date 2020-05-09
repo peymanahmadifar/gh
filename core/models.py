@@ -1,5 +1,7 @@
 import binascii
 import os
+import uuid
+
 import pyotp
 
 from datetime import timedelta
@@ -24,6 +26,12 @@ from django.dispatch import receiver
 # def user_post_save(sender, instance, created, **kwargs):
 #     if created:
 #         create_or_update_account(instance)
+
+
+def upload_to_photo(instance, filename):
+    pattern = 'photo/%d_%s.%s'
+    _ext = filename.split('.')[-1]
+    return pattern % (instance.id, uuid.uuid1(), _ext)
 
 
 # Create your models here.
@@ -114,11 +122,24 @@ class UserMeta(models.Model):
     }
 
     user = models.OneToOneField(User, on_delete=models.CASCADE)
-    national_id = models.CharField(max_length=10, unique=True, default='')
-    mobile = models.CharField(max_length=11, unique=True, default='')
+    national_id = models.CharField(max_length=10, unique=True, default=None, blank=True, null=True)
+    mobile = models.CharField(max_length=11, unique=True, default=None)
     mobile_verified = models.BooleanField(default=False)
     email_verified = models.BooleanField(default=False)
+    fathers_name = models.CharField(max_length=20, default=None, blank=True, null=True)
+    birth_date = models.DateField(blank=True, null=True)
+    birth_place = models.CharField(max_length=30, blank=True, null=True)
+    identity_card_number = models.CharField(max_length=10, default=None, blank=True, null=True)
+    home_address = models.TextField(max_length=120, default=None, blank=True, null=True)
+    work_address = models.TextField(max_length=120, blank=True, null=True)
+    postal_code = models.CharField(max_length=15, blank=True, null=True)
+    tel = models.CharField(max_length=15, default=None, blank=True, null=True)
     verification_type = models.IntegerField(default=VERIFICATION_PRIMARY)
+    identity_card_image = models.ImageField(null=True, blank=True, upload_to=upload_to_photo)
+    national_card_image = models.ImageField(null=True, blank=True, upload_to=upload_to_photo)
+
+    def __str__(self):
+        return self.user.username
 
 
 class VerificationGa(models.Model):
