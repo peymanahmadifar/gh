@@ -24,7 +24,7 @@ class MobileSerializer(serializers.Serializer):
         mobile = validated_data.get('mobile')
         user = User.objects.create(username=username, password=password)
         UserMeta.objects.create(user=user, mobile=mobile)
-        models.MembershipRequest.objects.create(user=user, lender_id=sandogh_id)
+        models.Member.objects.create(user=user, lender_id=sandogh_id)
         Campaign.send_sms(gtw=Campaign.GTW_PARSA_TEMPLATE_SMS,
                           to=mobile,
                           target_user=user,

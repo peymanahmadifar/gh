@@ -8,4 +8,5 @@ router.register('lenders', views.LenderViewSet)
 urlpatterns = [
     path('', include(router.urls)),
     path('invite-member/', views.InviteMember.as_view()),
+    path('member-form/', views.MemberForm.as_view()),
 ]

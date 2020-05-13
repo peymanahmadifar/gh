@@ -115,18 +115,29 @@ class UserMeta(models.Model):
     VERIFICATION_PRIMARY = 0
     VERIFICATION_GA = 1
     VERIFICATION_SMS = 2
-    VERIFICATION_CHOICES = {
-        VERIFICATION_PRIMARY: _('Primary'),
-        VERIFICATION_GA: _('Google Authentication'),
-        VERIFICATION_SMS: _('Sms')
-    }
+    VERIFICATION_CHOICES = (
+        (VERIFICATION_PRIMARY, 'Primary'),
+        (VERIFICATION_GA, 'Google Authentication'),
+        (VERIFICATION_SMS, 'Sms')
+    )
+
+    STATUS_NEW = 0
+    STATUS_WAITING_FOR_VERIFY = 1
+    STATUS_REJECT = 2
+    STATUS_VERIFY = 3
+    STATUS_CHOICES = (
+        (STATUS_NEW, 'new'),
+        (STATUS_WAITING_FOR_VERIFY, 'waiting for verify'),
+        (STATUS_REJECT, 'rejected'),
+        (STATUS_VERIFY, 'verified')
+    )
 
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     national_id = models.CharField(max_length=10, unique=True, default=None, blank=True, null=True)
-    mobile = models.CharField(max_length=11, unique=True, default=None)
+    mobile = models.CharField(max_length=11, unique=True, default=None, db_index=True)
     mobile_verified = models.BooleanField(default=False)
     email_verified = models.BooleanField(default=False)
-    fathers_name = models.CharField(max_length=20, default=None, blank=True, null=True)
+    father_name = models.CharField(max_length=20, default=None, blank=True, null=True)
     birth_date = models.DateField(blank=True, null=True)
     birth_place = models.CharField(max_length=30, blank=True, null=True)
     identity_card_number = models.CharField(max_length=10, default=None, blank=True, null=True)
@@ -134,9 +145,10 @@ class UserMeta(models.Model):
     work_address = models.TextField(max_length=120, blank=True, null=True)
     postal_code = models.CharField(max_length=15, blank=True, null=True)
     tel = models.CharField(max_length=15, default=None, blank=True, null=True)
-    verification_type = models.IntegerField(default=VERIFICATION_PRIMARY)
+    verification_type = models.SmallIntegerField(choices=VERIFICATION_CHOICES, default=VERIFICATION_PRIMARY)
     identity_card_image = models.ImageField(null=True, blank=True, upload_to=upload_to_photo)
     national_card_image = models.ImageField(null=True, blank=True, upload_to=upload_to_photo)
+    status = models.SmallIntegerField(choices=STATUS_CHOICES, default=STATUS_NEW)
 
     def __str__(self):
         return self.user.username

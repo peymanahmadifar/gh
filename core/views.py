@@ -56,6 +56,7 @@ class MyObtainAuthToken(ObtainAuthToken):
         serializer.is_valid(raise_exception=True)
         user = serializer.validated_data['user']
         token = Token.get_token(request, user)
+        user_status = UserMeta.STATUS_CHOICES[user.usermeta.status][1]
 
         return Response({
             'access_token': token.access_token,
@@ -63,7 +64,8 @@ class MyObtainAuthToken(ObtainAuthToken):
             'access_token_expiration': str(token.access_token_created_at + timezone.timedelta(
                 minutes=token.access_token_lifetime)),
             'refresh_token_expiration': str(token.refresh_token_created_at + timezone.timedelta(
-                minutes=token.refresh_token_lifetime))
+                minutes=token.refresh_token_lifetime)),
+            'user_status': user_status,
         })
 
 

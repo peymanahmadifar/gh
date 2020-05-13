@@ -154,29 +154,6 @@ class Member(extend.TrackModel):
     debt = models.BigIntegerField(default=0)
 
 
-# when we add change log model, we can understand which staff made the request and when. Also verify/reject logs
-class MembershipRequest(models.Model):
-    STATUS_NEW = 0
-    STATUS_WAITING_FOR_VERIFY = 1
-    STATUS_REJECT = 2
-    STATUS_VERIFY = 3
-    STATUS_CHOICES = (
-        (STATUS_NEW, 'new'),
-        (STATUS_WAITING_FOR_VERIFY, 'waiting for verify'),
-        (STATUS_REJECT, 'rejected'),
-        (STATUS_VERIFY, 'verified')
-    )
-
-    class Meta:
-        verbose_name = 'درخواست عضویت'
-        verbose_name_plural = 'درخواست‌های عضویت'
-
-    lender = models.ForeignKey(Lender, on_delete=models.CASCADE)
-    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
-    # mobile = models.CharField(max_length=11)
-    status = models.SmallIntegerField(choices=STATUS_CHOICES, default=STATUS_NEW)
-
-
 class Request(extend.TrackModel):
     class Meta:
         verbose_name = "درخواست"
