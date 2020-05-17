@@ -7,12 +7,13 @@ logger = logging.getLogger('django')
 
 # roles definitions
 ROLE_SANDOGH_ROOT = 'sandogh_root'
-# ROLE_ADMIN_LOG = 'admin-log'
+ROLE_SANDOGH_OPERATOR = 'sandogh_operator'
 
 NO_ROLE = 'no_role'
 
 roles = [
     ROLE_SANDOGH_ROOT,
+    ROLE_SANDOGH_OPERATOR,
     NO_ROLE,
 ]
 
@@ -75,6 +76,8 @@ allow([ROLE_SANDOGH_ROOT], ['InviteMember'])
 # list and get ...
 # add_resource('SampleViewSet')
 
+add_resource('MemberListViewSet')
+
 # used for customers
 # add_resource('OrderDetailsView')
 # add_resource('OrderScheduleDeliveryView')
@@ -82,6 +85,8 @@ allow([ROLE_SANDOGH_ROOT], ['InviteMember'])
 # *********************************************************************************
 # allow root to access all of resources
 # allow('root')
+
+allow([ROLE_SANDOGH_OPERATOR], 'MemberListViewSet')
 
 # ********************************************************************************
 # sales resources

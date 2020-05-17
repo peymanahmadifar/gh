@@ -4,6 +4,7 @@ from . import views
 
 router = routers.DefaultRouter()
 router.register('lenders', views.LenderViewSet)
+router.register('member-list', views.MemberListViewSet, basename='member-list')
 
 urlpatterns = [
     path('', include(router.urls)),

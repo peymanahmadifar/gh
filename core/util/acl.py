@@ -27,7 +27,7 @@ DOWNLOAD = 'download'
 def is_allowed(resource, privilege=None, roles=None):
     # return false if the resource id does not exist.
     if not _has_resource(resource):
-        raise Exception('resource %s does not exist! add it to core/util/acl.py' % resource)
+        raise Exception('resource %s does not exist! add it to the permissions.py' % resource)
 
     if ROLE_TEST:
         roles = [ROLE_TEST]
@@ -97,7 +97,7 @@ def allow_or_deny(method, roles=None, resources=None, privileges=None):
 
     for resource in resources:
         if not _has_resource(resource):
-            raise Exception('resource %s does not exist! add it to core/util/acl.py' % resource)
+            raise Exception('resource %s does not exist! add it to permissions.py' % resource)
 
         if resource not in permissions:
             permissions[resource] = {}

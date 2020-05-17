@@ -13,16 +13,18 @@ class LenderSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-class MobileSerializer(serializers.Serializer):
+class InviteMemberSerializer(serializers.Serializer):
     mobile = CellphoneField(label=_('Cellphone'), required=True)
 
     def create(self, validated_data):
         request = self.context.get('request')
         sandogh_id = get_from_header('Sandogh-Id', request)
-        username = 'user' + str(random.randrange(100000, 999999))
-        password = str(random.randrange(100000, 999999))
         mobile = validated_data.get('mobile')
-        user = User.objects.create(username=username, password=password)
+        username = str(mobile)
+        password = str(random.randrange(100000, 999999))
+        user = User.objects.create(username=username)
+        user.set_password(password)
+        user.save()
         UserMeta.objects.create(user=user, mobile=mobile)
         models.Member.objects.create(user=user, lender_id=sandogh_id)
         Campaign.send_sms(gtw=Campaign.GTW_PARSA_TEMPLATE_SMS,
@@ -49,5 +51,6 @@ class MobileSerializer(serializers.Serializer):
         mobile = attrs.get('mobile')
         um = UserMeta.objects.filter(mobile=mobile)
         if um:
-            raise serializers.ValidationError(_("The mobile number has already been registered in the system."))
+            raise serializers.ValidationError(
+                {"mobile": _("The mobile number has already been registered in the system.")})
         return attrs
