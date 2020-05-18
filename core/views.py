@@ -5,7 +5,7 @@ from django.views.decorators.http import require_GET
 from django.contrib.auth.models import User
 from django.core.exceptions import ObjectDoesNotExist
 
-from rest_framework import views, status, exceptions, serializers
+from rest_framework import views, status, exceptions, serializers, generics
 from rest_framework.response import Response
 from rest_framework.authtoken.views import ObtainAuthToken
 
@@ -16,7 +16,7 @@ from .util.extra_helper import get_ip
 from .util.auth_helper import auth_token_response
 from .util.authentication import get_authorization_header, CustomTokenAuthentication
 from .models import Token, UserMeta, VerificationGa, MobileTemp, Download
-from .serializers import LoginSerializer
+from .serializers import LoginSerializer, ChangePasswordSerializer
 
 
 class MyObtainAuthToken(ObtainAuthToken):
@@ -198,6 +198,10 @@ class VerificationType(views.APIView):
         verification_type = UserMeta.VERIFICATION_CHOICES[userMeta.verification_type]
 
         return Response({'verification_type': verification_type}, status=status.HTTP_200_OK)
+
+
+class ChangePasswordView(generics.CreateAPIView):
+    serializer_class = ChangePasswordSerializer
 
 
 class LoginWithTokenView(views.APIView):

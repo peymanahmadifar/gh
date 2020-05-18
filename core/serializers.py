@@ -142,3 +142,29 @@ class UserSerializer(serializers.ModelSerializer):
         if User.objects.filter(email=value).exclude(id=self.context.get('request').user.id).exists():
             raise serializers.ValidationError(_("email address is duplicated."))
         return value
+
+
+class ChangePasswordSerializer(serializers.Serializer):
+    password_current = serializers.CharField(label=_('current password'), required=True)
+    password = serializers.CharField(label=_('new password'), min_length=4, max_length=20, required=True)
+    password_confirm = serializers.CharField(label=_('confirm new password'), required=True)
+
+    def create(self, validated_data):
+        user = self.context['request'].user
+        user.set_password(validated_data['password'])
+        user.save()
+
+        return validated_data
+
+    def validate_password_current(self, value):
+        data = self.initial_data
+        user = self.context['request'].user
+        if not user.check_password(value):
+            raise serializers.ValidationError(_("current password is wrong"))
+        return value
+
+    def validate_password_confirm(self, value):
+        data = self.initial_data
+        if data['password'] != value:
+            raise serializers.ValidationError(_("Password confirm is wrong."))
+        return value
