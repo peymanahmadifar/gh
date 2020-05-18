@@ -5,6 +5,7 @@ from rest_framework import serializers
 from core.util.extend import CellphoneField, get_from_header
 from core.models import UserMeta, Campaign
 from . import models
+from .models import Member
 
 
 class LenderSerializer(serializers.ModelSerializer):
@@ -53,4 +54,35 @@ class InviteMemberSerializer(serializers.Serializer):
         if um:
             raise serializers.ValidationError(
                 {"mobile": _("The mobile number has already been registered in the system.")})
+        return attrs
+
+
+class VerifyUserSerializer(serializers.Serializer):
+    user_id = serializers.IntegerField(required=True)
+    status = serializers.ChoiceField(choices=(
+        (UserMeta.STATUS_REJECT, 'rejected'),
+        (UserMeta.STATUS_VERIFY, 'verified')
+    ))
+
+    def create(self, validated_data):
+        user_id = validated_data.get('user_id')
+        status = validated_data.get('status')
+        user = User.objects.get(pk=user_id)
+        user.usermeta.status = status
+        user.usermeta.save()
+        # @Todo send verify/reject messege/notification to the user
+        return validated_data
+
+    def validate(self, attrs):
+        user_id = attrs.get('user_id')
+        request = self.context.get('request')
+        lender_id = get_from_header('Sandogh-Id', request)
+        try:
+            user = User.objects.get(pk=user_id)
+        except User.DoesNotExist:
+            raise serializers.ValidationError({"user_id": _("User not found.")})
+        if not Member.objects.filter(lender_id=lender_id).exists():
+            raise serializers.ValidationError({"user_id": _("The user is not a member of the lender.")})
+        if user.usermeta.status == UserMeta.STATUS_VERIFY:
+            raise serializers.ValidationError({"user_id": _("The user is verified and the status cannot be changed.")})
         return attrs

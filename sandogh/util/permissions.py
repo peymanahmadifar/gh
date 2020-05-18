@@ -77,16 +77,13 @@ allow([ROLE_SANDOGH_ROOT], ['InviteMember'])
 # add_resource('SampleViewSet')
 
 add_resource('MemberListViewSet')
-
-# used for customers
-# add_resource('OrderDetailsView')
-# add_resource('OrderScheduleDeliveryView')
+add_resource('VerifyUser')
 
 # *********************************************************************************
 # allow root to access all of resources
 # allow('root')
 
-allow([ROLE_SANDOGH_OPERATOR], 'MemberListViewSet')
+allow([ROLE_SANDOGH_OPERATOR], ['MemberListViewSet', 'VerifyUser'])
 
 # ********************************************************************************
 # sales resources

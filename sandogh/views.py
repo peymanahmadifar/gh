@@ -8,7 +8,7 @@ from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
 from core.util.extend import StandardResultsSetPagination, get_from_header
-from .serializers import LenderSerializer, InviteMemberSerializer
+from .serializers import LenderSerializer, InviteMemberSerializer, VerifyUserSerializer
 from .util.permissions import StaffRolePermission
 from .models import Lender
 from core.util.permissions import UserRolePermission
@@ -87,3 +87,23 @@ class MemberListViewSet(viewsets.mixins.ListModelMixin, viewsets.GenericViewSet)
             queryset = queryset.filter(usermeta__status=status)
         serializer = UserSerializer(queryset, many=True)
         return Response(serializer.data)
+
+
+class VerifyUser(APIView):
+    permission_classes = (
+        permissions.IsAuthenticated,
+        StaffRolePermission
+    )
+
+    @swagger_auto_schema(
+        request_body=VerifyUserSerializer(),
+        responses={200: ''}
+        # description='choices: {2:reject, 3:verify}'
+    )
+    def post(self, request, *args, **kwargs):
+        serializer = VerifyUserSerializer(data=request.data,
+                                          context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        return Response(status.HTTP_200_OK)
