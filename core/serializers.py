@@ -1,11 +1,41 @@
+from random import randrange
+
 from django.contrib.auth import authenticate
 from django.utils.translation import gettext_lazy as _
 from django.contrib.auth.models import User
 
 from rest_framework import serializers
 
-from .models import UserMeta, VerificationGa
+from .models import UserMeta, VerificationGa, Confirm, Campaign
 from .util.extend import CellphoneField, PhoneField
+
+
+def reset_password_request_code(user, mobile):
+    confirm_data = {
+        'user': user,
+        'which': Confirm.WHICH_RESET_PASSWORD,
+        'code': str(randrange(12222, 99999)),
+    }
+    confirm, confirm_created = Confirm.objects.update_or_create(user=user, which=Confirm.WHICH_RESET_PASSWORD,
+                                                                defaults=confirm_data)
+    confirm.count += 1
+    confirm.save()
+
+    if confirm.count <= 10:
+        # @todo remove activation-mobile.html and use messages in django.po
+        Campaign.send_sms(
+            gtw=Campaign.GTW_PARSA_TEMPLATE_SMS,
+            to=mobile,
+            target_user=user,
+            tpl='resetPasswordRequestSms',
+            context=dict(
+                param1=confirm.code
+            ))
+    else:
+        # limit user or ...
+        # this behaviour is malicious.
+        # reset it by time
+        pass
 
 
 class LoginSerializer(serializers.Serializer):
@@ -168,3 +198,68 @@ class ChangePasswordSerializer(serializers.Serializer):
         if data['password'] != value:
             raise serializers.ValidationError(_("Password confirm is wrong."))
         return value
+
+
+class ResetPasswordRequestSerializer(serializers.Serializer):
+    username = serializers.CharField(label=_('Username'), required=True, max_length=60)
+    _user = None
+
+    def create(self, validated_data):
+        username = validated_data['username']
+        reset_password_request_code(self._user, self._user.usermeta.mobile)
+        # @todo if confirmation count exceeds return reasonable error to user to see and pay attention!
+        return validated_data
+
+    def validate_username(self, value):
+        try:
+            # search for number in user model
+            user = User.objects.get(username=value)
+            self._user = user
+            # if not user.is_active:
+            #     raise serializers.ValidationError(_("Username is not active!"))
+        except User.DoesNotExist as e:
+            raise serializers.ValidationError(_("username does not exist!"))
+        return value
+
+
+class ResetPasswordSerializer(serializers.Serializer):
+    username = serializers.CharField(label=_('username'), required=True, max_length=60)
+    code = serializers.CharField(label=_('code'), required=True, max_length=5)
+    password = serializers.CharField(label=_('password'), min_length=4, max_length=20, required=True)
+    password_confirm = serializers.CharField(label=_('confirm password'), required=True)
+    _confirm = None
+
+    def create(self, validated_data):
+        u = User.objects.get(username=validated_data['username'])
+        ''':type u: User'''
+        u.set_password(validated_data['password'])
+        u.is_active = True
+        try:
+            usermeta = u.usermeta
+            usermeta.mobile_verified = True
+            usermeta.save()
+        except UserMeta.DoesNotExist:
+            pass
+        u.save()
+
+        # delete confirm
+        self._confirm.delete()
+
+        return validated_data
+
+    def validate_password_confirm(self, value):
+        data = self.initial_data
+        if data['password'] != value:
+            raise serializers.ValidationError(_("Password confirm is wrong."))
+        return value
+
+    def validate_code(self, value):
+        data = self.initial_data
+        try:
+            confirm = Confirm.objects.get(user__username=data['username'], which=Confirm.WHICH_RESET_PASSWORD)
+            self._confirm = confirm
+            if confirm.code == value:
+                return value
+        except Confirm.DoesNotExist:
+            pass
+        raise serializers.ValidationError(_("Code is wrong!"))

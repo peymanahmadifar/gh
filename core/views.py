@@ -15,8 +15,9 @@ from drf_yasg import openapi
 from .util.extra_helper import get_ip
 from .util.auth_helper import auth_token_response
 from .util.authentication import get_authorization_header, CustomTokenAuthentication
-from .models import Token, UserMeta, VerificationGa, MobileTemp, Download
-from .serializers import LoginSerializer, ChangePasswordSerializer
+from .models import Token, UserMeta, VerificationGa, MobileTemp, Download, Confirm
+from .serializers import LoginSerializer, ChangePasswordSerializer, ResetPasswordRequestSerializer, \
+    ResetPasswordSerializer
 
 
 class MyObtainAuthToken(ObtainAuthToken):
@@ -202,6 +203,60 @@ class VerificationType(views.APIView):
 
 class ChangePasswordView(generics.CreateAPIView):
     serializer_class = ChangePasswordSerializer
+
+
+class ResetPasswordRequestView(generics.CreateAPIView):
+    permission_classes = ()
+    serializer_class = ResetPasswordRequestSerializer
+
+
+class ResetPasswordCheckCodeView(views.APIView):
+    permission_classes = ()
+
+    @swagger_auto_schema(
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            required=['username', 'code'],
+            properties={
+                'username': openapi.Schema(type=openapi.TYPE_STRING),
+                'code': openapi.Schema(type=openapi.TYPE_STRING),
+            },
+        ),
+        responses={
+            status.HTTP_200_OK: openapi.Schema(
+                type=openapi.TYPE_OBJECT,
+                properties={
+                    'status': openapi.Schema(type=openapi.TYPE_BOOLEAN),
+                },
+            ),
+        },
+    )
+    def post(self, request):
+        username = request.data.get('username', None)
+        if not username:
+            raise serializers.ValidationError({'username': _('This field is required.')})
+
+        code = request.data.get('code', None)
+        if not code:
+            raise serializers.ValidationError({'code': _('This field is required.')})
+
+        is_correct = False
+        try:
+            confirm = Confirm.objects.get(user__username=username, which=Confirm.WHICH_RESET_PASSWORD)
+            is_correct = confirm.code == code
+        except Confirm.DoesNotExist:
+            pass
+        if not is_correct:
+            raise serializers.ValidationError({'code': 'کد اشتباه است.'})
+
+        return Response({
+            "status": True
+        })
+
+
+class ResetPasswordView(generics.CreateAPIView):
+    permission_classes = ()
+    serializer_class = ResetPasswordSerializer
 
 
 class LoginWithTokenView(views.APIView):
