@@ -8,9 +8,11 @@ from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
 from core.util.extend import StandardResultsSetPagination, get_from_header
-from .serializers import LenderSerializer, InviteMemberSerializer, VerifyUserSerializer
+from .serializers import LenderSerializer, InviteMemberSerializer, VerifyUserSerializer, MemberSerializer, \
+    StaffSerializer
+from .util.helpers import get_staff
 from .util.permissions import StaffRolePermission
-from .models import Lender
+from .models import Lender, Member, Staff
 from core.util.permissions import UserRolePermission
 from core.serializers import UserSerializer
 from core.models import UserMeta
@@ -70,6 +72,21 @@ class MemberForm(APIView):
         return Response({'data': serializer.to_representation(instance=instance)}, status.HTTP_200_OK)
 
 
+class StaffListViewSet(viewsets.mixins.ListModelMixin, viewsets.GenericViewSet):
+    permission_classes = (
+        permissions.IsAuthenticated,
+        StaffRolePermission,
+    )
+    pagination_class = StandardResultsSetPagination
+
+    @swagger_auto_schema(responses={200: StaffSerializer(many=True)})
+    def list(self, request):
+        staff = get_staff(request)
+        queryset = Staff.objects.filter(lender=staff.lender).order_by('-pk')
+        serializer = StaffSerializer(queryset, many=True)
+        return Response(serializer.data)
+
+
 class MemberListViewSet(viewsets.mixins.ListModelMixin, viewsets.GenericViewSet):
     permission_classes = (
         permissions.IsAuthenticated,
@@ -77,15 +94,14 @@ class MemberListViewSet(viewsets.mixins.ListModelMixin, viewsets.GenericViewSet)
     )
     pagination_class = StandardResultsSetPagination
 
-    @swagger_auto_schema(responses={200: UserSerializer(many=True)})
-    # @Todo add filters query params to api document
+    @swagger_auto_schema(responses={200: MemberSerializer(many=True)})
     def list(self, request):
-        lender_id = get_from_header('Sandogh-Id', request)
-        queryset = User.objects.filter(member__lender_id=lender_id).order_by('-pk')
+        staff = get_staff(request)
+        queryset = Member.objects.filter(lender=staff.lender).order_by('-pk')
         status = self.request.query_params.get('status', None)
         if status is not None:
-            queryset = queryset.filter(usermeta__status=status)
-        serializer = UserSerializer(queryset, many=True)
+            queryset = queryset.filter(user__usermeta__status=status)
+        serializer = MemberSerializer(queryset, many=True)
         return Response(serializer.data)
 
 

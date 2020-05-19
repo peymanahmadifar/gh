@@ -3,6 +3,8 @@ from core.util.extend import get_from_header
 from sandogh.models import Role, Staff
 import logging
 
+from sandogh.util.helpers import get_staff
+
 logger = logging.getLogger('django')
 
 # roles definitions
@@ -31,30 +33,23 @@ class StaffRolePermission():
 
 
 def staff_is_allowed(resource, privilege=None, request=None):
-    staff_id = get_from_header('Staff-Id', request)
-    try:
-        staff = Staff.objects.get(pk=staff_id)
-    except Staff.DoesNotExist:
-        raise Exception('Staff does not exist')
+    staff = get_staff(request)
     if staff.user != request.user:
-        raise Exception('The Staff-Id does not match the logged in user')
-    roles = Role.get_by_staff(staff_id=request.headers.get('Staff-Id'))
-    logger.info('is_allowed: resource %s, staff %s, roles: %s' % (resource, request.headers.get('Staff-Id'), roles))
+        raise Exception('The staff-id does not match the logged in user')
+    roles = Role.get_by_staff(staff_id=staff.id)
+    logger.info('is_allowed: resource %s, staff %s, roles: %s' % (resource, staff.id, roles))
     if is_allowed(resource, privilege, roles):
         logger.info(
-            'staff %s, resource %s, roles: %s Yes, it is allowed!' % (request.headers.get('Staf-_Id'), resource, roles))
+            'staff %s, resource %s, roles: %s Yes, it is allowed!' % (staff.id, resource, roles))
         return True
     else:
         logger.info(
-            'staff %s, resource %s, roles: %s not allowed!' % (request.headers.get('Staff-Id'), resource, roles))
+            'staff %s, resource %s, roles: %s not allowed!' % (staff.id, resource, roles))
         return False
 
 
 def staff_has_role(role, staff_id=None, request=None):
-    if request:
-        staff_id = request.headers.get('Staff-Id')
-    if not staff_id:
-        raise Exception('has_staff_role: bad argument')
+    staff_id = get_from_header('staff-id', request)
     roles = Role.get_by_staff(staff_id=staff_id)
     return role in roles
 
@@ -73,17 +68,17 @@ allow([ROLE_SANDOGH_ROOT], ['InviteMember'])
 #     allow('kiosk', 'akbar', 'bezan')
 #     allow('kiosk', 'akbar')
 
-# list and get ...
-# add_resource('SampleViewSet')
-
 add_resource('MemberListViewSet')
 add_resource('VerifyUser')
+add_resource('StaffListViewSet')
 
 # *********************************************************************************
 # allow root to access all of resources
-# allow('root')
+
+allow(ROLE_SANDOGH_ROOT)
 
 allow([ROLE_SANDOGH_OPERATOR], ['MemberListViewSet', 'VerifyUser'])
+allow([ROLE_SANDOGH_ROOT], ['StaffListViewSet'])
 
 # ********************************************************************************
 # sales resources

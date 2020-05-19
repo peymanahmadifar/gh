@@ -1,17 +1,42 @@
 import random
+
 from django.contrib.auth.models import User
 from django.utils.translation import gettext_lazy as _
+
 from rest_framework import serializers
+
+from core.serializers import UserSerializer
 from core.util.extend import CellphoneField, get_from_header
 from core.models import UserMeta, Campaign
-from . import models
-from .models import Member
+
+from .models import Member, Lender, Staff
+from .util.helpers import get_staff
 
 
 class LenderSerializer(serializers.ModelSerializer):
     class Meta:
-        model = models.Lender
+        model = Lender
         fields = '__all__'
+
+
+class MemberSerializer(serializers.ModelSerializer):
+    user = UserSerializer()
+    lender = LenderSerializer()
+
+    class Meta:
+        model = Member
+        fields = '__all__'
+        read_only_fields = ('user', 'lender')
+
+
+class StaffSerializer(serializers.ModelSerializer):
+    user = UserSerializer()
+    lender = LenderSerializer()
+
+    class Meta:
+        model = Staff
+        fields = '__all__'
+        read_only_fields = ('user', 'lender')
 
 
 class InviteMemberSerializer(serializers.Serializer):
@@ -19,7 +44,7 @@ class InviteMemberSerializer(serializers.Serializer):
 
     def create(self, validated_data):
         request = self.context.get('request')
-        sandogh_id = get_from_header('Sandogh-Id', request)
+        staff = get_staff(request)
         mobile = validated_data.get('mobile')
         username = str(mobile)
         password = str(random.randrange(100000, 999999))
@@ -27,7 +52,7 @@ class InviteMemberSerializer(serializers.Serializer):
         user.set_password(password)
         user.save()
         UserMeta.objects.create(user=user, mobile=mobile)
-        models.Member.objects.create(user=user, lender_id=sandogh_id)
+        Member.objects.create(user=user, lender=staff.lender)
         Campaign.send_sms(gtw=Campaign.GTW_PARSA_TEMPLATE_SMS,
                           to=mobile,
                           target_user=user,
@@ -39,16 +64,6 @@ class InviteMemberSerializer(serializers.Serializer):
         return validated_data
 
     def validate(self, attrs):
-        request = self.context.get('request')
-        try:
-            staff_id = get_from_header('Staff-Id', request)
-            sandogh_id = get_from_header('Sandogh-Id', request)
-        except Exception as e:
-            raise serializers.ValidationError(e)
-        if sandogh_id != models.Staff.objects.get(pk=staff_id).lender_id:
-            from rest_framework.exceptions import PermissionDenied
-            raise PermissionDenied(_("You dont have permission to invite a member to this lender."))
-        from core.models import UserMeta
         mobile = attrs.get('mobile')
         um = UserMeta.objects.filter(mobile=mobile)
         if um:
@@ -76,12 +91,12 @@ class VerifyUserSerializer(serializers.Serializer):
     def validate(self, attrs):
         user_id = attrs.get('user_id')
         request = self.context.get('request')
-        lender_id = get_from_header('Sandogh-Id', request)
+        staff = get_staff(request)
         try:
             user = User.objects.get(pk=user_id)
         except User.DoesNotExist:
             raise serializers.ValidationError({"user_id": _("User not found.")})
-        if not Member.objects.filter(lender_id=lender_id).exists():
+        if not Member.objects.filter(lender=staff.lender).exists():
             raise serializers.ValidationError({"user_id": _("The user is not a member of the lender.")})
         if user.usermeta.status == UserMeta.STATUS_VERIFY:
             raise serializers.ValidationError({"user_id": _("The user is verified and the status cannot be changed.")})

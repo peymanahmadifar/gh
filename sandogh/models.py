@@ -95,14 +95,13 @@ class Lender(extend.TrackModel):
 
     name = models.CharField(max_length=100)
     domain = models.CharField(max_length=60, default='')
-    admin = models.ForeignKey(settings.AUTH_USER_MODEL, blank=True, null=True, verbose_name=_('admin username'),
-                              on_delete=models.CASCADE)
 
 
 class Staff(extend.TrackModel):
     class Meta:
         verbose_name = "کارمند"
         verbose_name_plural = "کارمندها"
+        unique_together = ('user', 'lender',)
 
     lender = models.ForeignKey('Lender', on_delete=models.PROTECT)
 
@@ -148,6 +147,7 @@ class Member(extend.TrackModel):
     class Meta:
         verbose_name = "عضو"
         verbose_name_plural = "اعضا"
+        unique_together = ('user', 'lender',)
 
     lender = models.ForeignKey('Lender', on_delete=models.PROTECT)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
