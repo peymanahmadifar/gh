@@ -6,11 +6,12 @@ from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 
 from core.serializers import UserSerializer
-from core.util.extend import CellphoneField, get_from_header
+from core.util.extend import CellphoneField
 from core.models import UserMeta, Campaign
 
-from .models import Member, Lender, Staff
+from .models import Member, Lender, Staff, Role
 from .util.helpers import get_staff
+from .util.permissions import roles, staff_has_role
 
 
 class LenderSerializer(serializers.ModelSerializer):
@@ -29,9 +30,16 @@ class MemberSerializer(serializers.ModelSerializer):
         read_only_fields = ('user', 'lender')
 
 
+class RoleSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Role
+        fields = ['role']
+
+
 class StaffSerializer(serializers.ModelSerializer):
     user = UserSerializer()
     lender = LenderSerializer()
+    role_set = RoleSerializer(many=True)
 
     class Meta:
         model = Staff
@@ -100,4 +108,32 @@ class VerifyUserSerializer(serializers.Serializer):
             raise serializers.ValidationError({"user_id": _("The user is not a member of the lender.")})
         if user.usermeta.status == UserMeta.STATUS_VERIFY:
             raise serializers.ValidationError({"user_id": _("The user is verified and the status cannot be changed.")})
+        return attrs
+
+
+class AssignRoleSerializer(serializers.Serializer):
+    staff_id = serializers.IntegerField(required=True)
+    role = serializers.CharField(required=True, max_length=60)
+
+    def create(self, validated_data):
+        staff_id = validated_data.get('staff_id')
+        role = validated_data.get('role')
+        Role.objects.create(staff_id=staff_id, role=role)
+        return validated_data
+
+    def validate(self, attrs):
+        staff_id = attrs.get('staff_id')
+        role = attrs.get('role')
+        if not role in roles:
+            raise serializers.ValidationError({"role": _("Role does not exists.")})
+        request = self.context.get('request')
+        request_staff = get_staff(request)
+        try:
+            staff = Staff.objects.get(pk=staff_id)
+        except Staff.DoesNotExist:
+            raise serializers.ValidationError({"staff_id": _("Staff not found.")})
+        if staff.lender != request_staff.lender:
+            raise serializers.ValidationError({"staff_id": _("The staff do not belong to the lender.")})
+        if staff_has_role(role=role, staff_id=staff_id):
+            raise serializers.ValidationError({"role": _("Duplicated role.")})
         return attrs

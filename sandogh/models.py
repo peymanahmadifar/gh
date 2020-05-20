@@ -136,9 +136,9 @@ class Role(models.Model):
         return roles
 
     @staticmethod
-    def get_staff_by_role(role):
+    def get_staff_by_role(role, lender_id):
         staffs = []
-        for staff_role in Role.objects.filter(role=role):
+        for staff_role in Role.objects.filter(role=role, staff__lender_id=lender_id):
             staffs.append(staff_role.staff)
         return staffs
 

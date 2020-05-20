@@ -1,5 +1,14 @@
-from core.util.extend import get_from_header
 from sandogh.models import Staff
+
+
+def get_from_header(key, request, raise_exception=True):
+    if not request.headers.get(key):
+        if raise_exception:
+            raise Exception('The %s must be set in the request header' % key)
+        else:
+            return None
+    else:
+        return int(request.headers.get(key))
 
 
 def get_staff(request):

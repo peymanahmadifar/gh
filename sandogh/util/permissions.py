@@ -1,9 +1,8 @@
 from core.util.acl import add_role, allow, deny, add_resource, is_allowed
-from core.util.extend import get_from_header
 from sandogh.models import Role, Staff
 import logging
 
-from sandogh.util.helpers import get_staff
+from sandogh.util.helpers import get_staff, get_from_header
 
 logger = logging.getLogger('django')
 
@@ -49,7 +48,10 @@ def staff_is_allowed(resource, privilege=None, request=None):
 
 
 def staff_has_role(role, staff_id=None, request=None):
-    staff_id = get_from_header('staff-id', request)
+    if request:
+        staff_id = get_from_header('staff-id', request)
+    if not staff_id:
+        raise Exception('staff_has_role: bad argument')
     roles = Role.get_by_staff(staff_id=staff_id)
     return role in roles
 
@@ -69,15 +71,19 @@ allow([ROLE_SANDOGH_ROOT], ['InviteMember'])
 #     allow('kiosk', 'akbar')
 
 add_resource('MemberListViewSet')
-add_resource('VerifyUser')
+add_resource('VerifyUserView')
 add_resource('StaffListViewSet')
+add_resource('RolesView')
+add_resource('StaffsByRoleView')
+add_resource('AssignRoleView')
+add_resource('RemoveRoleView')
 
 # *********************************************************************************
 # allow root to access all of resources
 
 allow(ROLE_SANDOGH_ROOT)
 
-allow([ROLE_SANDOGH_OPERATOR], ['MemberListViewSet', 'VerifyUser'])
+allow([ROLE_SANDOGH_OPERATOR], ['MemberListViewSet', 'VerifyUserView'])
 allow([ROLE_SANDOGH_ROOT], ['StaffListViewSet'])
 
 # ********************************************************************************
