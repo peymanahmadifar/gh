@@ -39,7 +39,7 @@ class RoleSerializer(serializers.ModelSerializer):
 class StaffSerializer(serializers.ModelSerializer):
     user = UserSerializer()
     lender = LenderSerializer()
-    role_set = RoleSerializer(many=True)
+    role_set = RoleSerializer(many=True, read_only=True)
 
     class Meta:
         model = Staff
@@ -93,7 +93,15 @@ class VerifyUserSerializer(serializers.Serializer):
         user = User.objects.get(pk=user_id)
         user.usermeta.status = status
         user.usermeta.save()
-        # @Todo send verify/reject messege/notification to the user
+        tpl = 'verfyUserTemplate' if status == UserMeta.STATUS_VERIFY else 'rejectUserTemplate'
+        Campaign.send_sms(gtw=Campaign.GTW_PARSA_TEMPLATE_SMS,
+                          to=user.usermeta.mobile,
+                          target_user=user,
+                          tpl=tpl,
+                          # @Todo set params according to template when the template defined
+                          context=dict(
+                              param1=status,
+                          ))
         return validated_data
 
     def validate(self, attrs):
