@@ -114,11 +114,17 @@ USE_TZ = True
 STATIC_URL = '/static/'
 
 # customized by peyman ahmadifar
+
 INSTALLED_APPS += [
     'core',
     'sandogh',
     'rest_framework',
     'drf_yasg',
+]
+
+AUTHENTICATION_BACKENDS = [
+    'django.contrib.auth.backends.ModelBackend',
+    'core.util.authentication.CustomBackend',
 ]
 
 REST_FRAMEWORK = {

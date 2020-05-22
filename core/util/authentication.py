@@ -1,15 +1,14 @@
 """
 Provides various authentication policies.
 """
-
+from django.contrib.auth.models import User
 from django.middleware.csrf import CsrfViewMiddleware
 from django.utils.translation import gettext_lazy as _
+from django.utils import timezone
+from django.db.models import Q
 
 from rest_framework import HTTP_HEADER_ENCODING, exceptions
-
 from rest_framework.authentication import BaseAuthentication
-
-from django.utils import timezone
 
 
 def get_authorization_header(request):
@@ -29,6 +28,41 @@ class CSRFCheck(CsrfViewMiddleware):
     def _reject(self, request, reason):
         # Return the failure reason instead of an HttpResponse
         return reason
+
+
+class CustomBackend():
+    """
+    Use the email and mobile as usernames, if exists.
+    """
+
+    def authenticate(self, request, username=None, password=None):
+
+        if username and password:
+            user = None
+            try:
+                user = User.objects.get(email=username)
+            except User.DoesNotExist:
+                try:
+                    user = User.objects.get(Q(usermeta__mobile=username) | Q(usermeta__national_id=username))
+                except User.DoesNotExist:
+                    pass
+            if user and user.check_password(password):
+                return user
+        return None
+
+    def get_user(self, user_id):
+        try:
+            return User.objects.get(pk=user_id)
+        except User.DoesNotExist:
+            return None
+
+    def user_can_authenticate(self, user):
+        """
+        Reject users with is_active=False. Custom user models that don't have
+        that attribute are allowed.
+        """
+        is_active = getattr(user, 'is_active', None)
+        return is_active or is_active is None
 
 
 class CustomTokenAuthentication(BaseAuthentication):
