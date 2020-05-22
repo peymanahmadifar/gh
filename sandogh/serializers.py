@@ -1,5 +1,3 @@
-import random
-
 from django.contrib.auth.models import User
 from django.utils.translation import gettext_lazy as _
 
@@ -55,7 +53,7 @@ class InviteMemberSerializer(serializers.Serializer):
         staff = get_staff(request)
         mobile = validated_data.get('mobile')
         username = str(mobile)
-        password = str(random.randrange(100000, 999999))
+        password = str(mobile)[-4:]
         user = User.objects.create(username=username)
         user.set_password(password)
         user.save()
