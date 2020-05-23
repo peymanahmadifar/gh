@@ -12,6 +12,7 @@ from rest_framework.authtoken.views import ObtainAuthToken
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
+from sandogh.models import Member, Staff
 from .util.extra_helper import get_ip
 from .util.auth_helper import auth_token_response
 from .util.authentication import get_authorization_header, CustomTokenAuthentication
@@ -43,7 +44,16 @@ class MyObtainAuthToken(ObtainAuthToken):
                     'access_token': openapi.Schema(type=openapi.TYPE_STRING),
                     'refresh_token': openapi.Schema(type=openapi.TYPE_STRING),
                     'access_token_expiration': openapi.Schema(type=openapi.TYPE_STRING),
-                    'refresh_token_expiration': openapi.Schema(type=openapi.TYPE_STRING)
+                    'refresh_token_expiration': openapi.Schema(type=openapi.TYPE_STRING),
+                    'user_status': openapi.Schema(type=openapi.TYPE_STRING),
+                    'member_ids': openapi.Schema(type=openapi.TYPE_ARRAY, items=openapi.Schema(
+                        type=openapi.TYPE_OBJECT, properties={'member-id': openapi.Schema(type=openapi.TYPE_INTEGER),
+                                                              'lender-name': openapi.Schema(
+                                                                  type=openapi.TYPE_STRING)})),
+                    'staff_ids': openapi.Schema(type=openapi.TYPE_ARRAY, items=openapi.Schema(
+                        type=openapi.TYPE_OBJECT, properties={'staff-id': openapi.Schema(type=openapi.TYPE_INTEGER),
+                                                              'lender-name': openapi.Schema(
+                                                                  type=openapi.TYPE_STRING)})),
                 },
             ),
             #     status.HTTP_204_NO_CONTENT: openapi.Response(
@@ -58,7 +68,12 @@ class MyObtainAuthToken(ObtainAuthToken):
         user = serializer.validated_data['user']
         token = Token.get_token(request, user)
         user_status = UserMeta.STATUS_CHOICES[user.usermeta.status][1]
-
+        member_ids = []
+        for member in Member.objects.filter(user=user):
+            member_ids.append({'member-id': member.id, 'lender-name': member.lender.name})
+        staff_ids = []
+        for staff in Staff.objects.filter(user=user):
+            staff_ids.append({'staff-id': staff.id, 'lender-name': staff.lender.name})
         return Response({
             'access_token': token.access_token,
             'refresh_token': token.refresh_token,
@@ -67,6 +82,8 @@ class MyObtainAuthToken(ObtainAuthToken):
             'refresh_token_expiration': str(token.refresh_token_created_at + timezone.timedelta(
                 minutes=token.refresh_token_lifetime)),
             'user_status': user_status,
+            'member_ids': member_ids,
+            'staff_ids': staff_ids,
         })
 
 
