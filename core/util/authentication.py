@@ -40,12 +40,10 @@ class CustomBackend():
         if username and password:
             user = None
             try:
-                user = User.objects.get(email=username)
+                user = User.objects.get(
+                    Q(usermeta__mobile=username) | Q(usermeta__national_id=username) | Q(email=username))
             except User.DoesNotExist:
-                try:
-                    user = User.objects.get(Q(usermeta__mobile=username) | Q(usermeta__national_id=username))
-                except User.DoesNotExist:
-                    pass
+                pass
             if user and user.check_password(password):
                 return user
         return None

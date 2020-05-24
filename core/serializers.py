@@ -3,11 +3,15 @@ from random import randrange
 from django.contrib.auth import authenticate
 from django.utils.translation import gettext_lazy as _
 from django.contrib.auth.models import User
+from django.conf import settings
+from django.utils import timezone
+from django.db.models import Q
 
 from rest_framework import serializers
 
-from .models import UserMeta, VerificationGa, Confirm, Campaign
+from .models import UserMeta, VerificationGa, Confirm, Campaign, LastB, VerificationSms
 from .util.extend import CellphoneField, PhoneField
+from .util.extra_helper import get_ip
 
 
 def reset_password_request_code(user, mobile):
@@ -49,15 +53,21 @@ class LoginSerializer(serializers.Serializer):
         label=_("Google Authentication key"),
         required=False
     )
+    sms_key = serializers.CharField(
+        label=_("Sms Authentication key"),
+        required=False
+    )
 
     def validate(self, attrs):
         username = attrs.get('username')
         password = attrs.get('password')
         ga_key = attrs.get('ga_key')
+        sms_key = attrs.get('sms_key')
+
+        request = self.context.get('request')
 
         if username and password:
-            user = authenticate(request=self.context.get('request'),
-                                username=username, password=password)
+            user = authenticate(request=request, username=username, password=password)
 
             # The authenticate call simply returns None for is_active=False
             # users. (Assuming the default ModelBackend authentication
@@ -73,16 +83,62 @@ class LoginSerializer(serializers.Serializer):
                         try:
                             user_ga = user.verificationga
                         except VerificationGa.DoesNotExist:
-                            msg = _('The GA is enabled but VerificationGa does not exist.')
+                            msg = _('The GA is enabled but your secure key does not exist in the database.')
                             raise serializers.ValidationError(msg, code='authorization')
                         if not user_ga.verify(ga_key):
+                            LastB.objects.create(user=user, ip=get_ip(request), type=UserMeta.VERIFICATION_GA)
                             msg = _('Google authentication key is wrong.')
-                            raise serializers.ValidationError(msg, code='authorization')
+                            raise serializers.ValidationError({'ga_key': [msg]}, code='authorization')
                     else:
-                        msg = _('Must include "ga_key".')
+                        msg = _('ga_key is required.')
+                        raise serializers.ValidationError({'ga_key': [msg]}, code='authorization')
+                if userMeta.verification_type == UserMeta.VERIFICATION_SMS:
+                    try:
+                        user_sms_record = user.verificationsms
+                    except VerificationSms.DoesNotExist:
+                        user_sms_record = None
+                    if user_sms_record and (user_sms_record.created_at + timezone.timedelta(hours=1) < timezone.now()):
+                        user_sms_record.delete()
+                        user_sms_record = None
+                    if sms_key:
+                        if not user_sms_record:
+                            msg = _('Verification Code was not found.')
+                            raise serializers.ValidationError({'sms_key': [msg]}, code='authorization')
+                        elif user_sms_record.code != sms_key:
+                            LastB.objects.create(user=user, ip=get_ip(request), type=UserMeta.VERIFICATION_SMS)
+                            msg = _('The code entered is incorrect.')
+                            raise serializers.ValidationError({'sms_key': [msg]}, code='authorization')
+                        elif user_sms_record.updated_at + timezone.timedelta(
+                                minutes=user_sms_record.lifetime) < timezone.now():
+                            msg = _('The code expired.')
+                            raise serializers.ValidationError({'sms_key': [msg]}, code='authorization')
+                    else:
+                        from math import ceil
+                        if not user_sms_record:
+                            pass
+                        elif user_sms_record.update_count >= settings.CUSTOM_AUTHENTICATION['MAX_LOGIN_SMS_PER_HOUR']:
+                            timedelta = (user_sms_record.created_at + timezone.timedelta(hours=1)) - timezone.now()
+                            minutes = ceil(timedelta.seconds / 60)
+                            msg = _('Your attempts are too much. You can try again in {} minutes.'.format(minutes))
+                            raise serializers.ValidationError(msg, code='authorization')
+                        elif user_sms_record.updated_at + timezone.timedelta(
+                                minutes=user_sms_record.lifetime) > timezone.now():
+                            timedelta = (user_sms_record.updated_at + timezone.timedelta(
+                                minutes=user_sms_record.lifetime)) - timezone.now()
+                            msg = _('You cannot request a code until {} seconds later.'.format(timedelta.seconds))
+                            raise serializers.ValidationError(msg, code='authorization')
+                        VerificationSms.send_new_code(user)
+                        mobile = '*******' + user.usermeta.mobile[-4:]
+                        msg = _('The verification code was sent to your number {}.'.format(mobile))
                         raise serializers.ValidationError(msg, code='authorization')
-
             else:
+                try:
+                    user = User.objects.get(
+                        Q(usermeta__mobile=username) | Q(usermeta__national_id=username) | Q(username=username) | Q(
+                            email=username))
+                    LastB.objects.create(user=user, ip=get_ip(request))
+                except (User.DoesNotExist, UserMeta.DoesNotExist)as e:
+                    pass
                 msg = _('Unable to log in with provided credentials.')
                 raise serializers.ValidationError(msg, code='authorization')
         else:

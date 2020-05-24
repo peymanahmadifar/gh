@@ -140,8 +140,9 @@ CUSTOM_AUTHENTICATION = {
     # the lifetime unit is minutes
     'ACCESS_TOKEN_LIFETIME': 120,  # set to 10 in production
     'REFRESH_TOKEN_LIFETIME': 120,
-
     'MAX_VALID_TOKEN_PER_USER': 5,
+    'MAX_LOGIN_SMS_PER_HOUR': 5,
+    'SMS_CODE_LIFETIME': 3,
 }
 
 SWAGGER_SETTINGS = {

@@ -4,7 +4,6 @@ import uuid
 
 import pyotp
 
-from datetime import timedelta
 from django.db import models, IntegrityError
 from django.contrib.auth.models import User
 from django.contrib.postgres.fields import JSONField
@@ -68,7 +67,8 @@ class Token(models.Model):
     def remove_expired_tokens(user):
         user_tokens = Token.objects.filter(user=user)
         for token in user_tokens:
-            if (token.refresh_token_created_at + timedelta(minutes=token.refresh_token_lifetime)) <= timezone.now():
+            if (token.refresh_token_created_at + timezone.timedelta(
+                    minutes=token.refresh_token_lifetime)) <= timezone.now():
                 token.delete()
 
     @staticmethod
@@ -183,6 +183,40 @@ class VerificationGa(models.Model):
 class VerificationSms(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     code = models.CharField(max_length=10)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    update_count = models.SmallIntegerField(default=0)
+    lifetime = models.SmallIntegerField(default=settings.CUSTOM_AUTHENTICATION['SMS_CODE_LIFETIME'])
+
+    @staticmethod
+    def send_new_code(user):
+        from random import randrange
+        try:
+            old_msg = user.verificationsms
+        except VerificationSms.DoesNotExist:
+            old_msg = None
+        code = str(randrange(12222, 99999))
+        mobile = user.usermeta.mobile
+        Campaign.send_sms(gtw=Campaign.GTW_PARSA_TEMPLATE_SMS,
+                          to=mobile,
+                          target_user=user,
+                          tpl='smsAuthenticationCode',
+                          context=dict(
+                              param1=code,
+                          ))
+        if old_msg:
+            old_msg.code = code
+            old_msg.update_count += 1
+            old_msg.save()
+        else:
+            VerificationSms.objects.create(user=user, code=code)
+        return True
+
+
+class LastB(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    ip = models.GenericIPAddressField()
+    type = models.SmallIntegerField(choices=UserMeta.VERIFICATION_CHOICES, default=UserMeta.VERIFICATION_PRIMARY)
     created_at = models.DateTimeField(auto_now_add=True)
 
 
