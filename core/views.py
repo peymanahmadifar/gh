@@ -16,7 +16,7 @@ from sandogh.models import Member, Staff
 from .util.extra_helper import get_ip
 from .util.auth_helper import auth_token_response
 from .util.authentication import get_authorization_header, CustomTokenAuthentication
-from .models import Token, UserMeta, VerificationGa, MobileTemp, Download, Confirm
+from .models import Token, UserMeta, VerificationGa, MobileTemp, Download, Confirm, VerificationSms
 from .serializers import LoginSerializer, ChangePasswordSerializer, ResetPasswordRequestSerializer, \
     ResetPasswordSerializer
 
@@ -161,13 +161,11 @@ class EnableGa(views.APIView):
         },
     )
     def get(self, request, format=None):
-        try:
-            userMeta = request.user.usermeta
-        except ObjectDoesNotExist:
-            msg = _('UserMeta does not exist.')
-            raise exceptions.APIException(msg)
-        ga_enabled = userMeta.verification_type == UserMeta.VERIFICATION_GA
-        if ga_enabled:
+        userMeta = request.user.usermeta
+        if userMeta.verification_type == UserMeta.VERIFICATION_SMS:
+            return Response({"details": 'You have already enabled Sms authentication.'},
+                            status=status.HTTP_400_BAD_REQUEST)
+        if userMeta.verification_type == UserMeta.VERIFICATION_GA:
             # raise exceptions.APIException(_('Google Authentication already is enabled.'))
             result = VerificationGa.enable_user_ga(request.user, True)
         else:
@@ -177,19 +175,43 @@ class EnableGa(views.APIView):
         return Response(result, status=status.HTTP_200_OK)
 
 
+class EnableSmsAuth(views.APIView):
+
+    @swagger_auto_schema(responses={200: ''}, )
+    def get(self, request, format=None):
+        userMeta = request.user.usermeta
+        if userMeta.verification_type == UserMeta.VERIFICATION_GA:
+            return Response({"details": 'You have already enabled Google authentication.'},
+                            status=status.HTTP_400_BAD_REQUEST)
+        if userMeta.verification_type == UserMeta.VERIFICATION_SMS:
+            return Response({"details": 'You have already enabled Sms authentication.'},
+                            status=status.HTTP_400_BAD_REQUEST)
+        userMeta.verification_type = UserMeta.VERIFICATION_SMS
+        userMeta.save()
+        return Response(status=status.HTTP_200_OK)
+
+
 class DisableGa(views.APIView):
 
     def get(self, request, format=None):
-        try:
-            userMeta = request.user.usermeta
-        except ObjectDoesNotExist:
-            msg = _('UserMeta does not exist.')
-            raise exceptions.APIException(msg)
-        ga_enabled = userMeta.verification_type == UserMeta.VERIFICATION_GA
-        if ga_enabled:
+        userMeta = request.user.usermeta
+        if userMeta.verification_type == UserMeta.VERIFICATION_GA:
             userMeta.verification_type = UserMeta.VERIFICATION_PRIMARY
             userMeta.save()
             VerificationGa.objects.filter(user=request.user).delete()
+        else:
+            pass
+        return Response(status=status.HTTP_200_OK)
+
+
+class DisableSmsAuth(views.APIView):
+
+    def get(self, request, format=None):
+        userMeta = request.user.usermeta
+        if userMeta.verification_type == UserMeta.VERIFICATION_SMS:
+            userMeta.verification_type = UserMeta.VERIFICATION_PRIMARY
+            userMeta.save()
+            VerificationSms.objects.filter(user=request.user).delete()
         else:
             pass
         return Response(status=status.HTTP_200_OK)
@@ -208,13 +230,8 @@ class VerificationType(views.APIView):
         },
     )
     def get(self, request, format=None):
-        try:
-            userMeta = request.user.usermeta
-        except ObjectDoesNotExist:
-            msg = _('UserMeta does not exist.')
-            raise exceptions.APIException(msg)
+        userMeta = request.user.usermeta
         verification_type = UserMeta.VERIFICATION_CHOICES[userMeta.verification_type]
-
         return Response({'verification_type': verification_type}, status=status.HTTP_200_OK)
 
 

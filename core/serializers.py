@@ -269,7 +269,9 @@ class ResetPasswordRequestSerializer(serializers.Serializer):
     def validate_username(self, value):
         try:
             # search for number in user model
-            user = User.objects.get(username=value)
+            user = User.objects.get(
+                Q(usermeta__mobile=value) | Q(usermeta__national_id=value) | Q(username=value) | Q(
+                    email=value))
             self._user = user
             # if not user.is_active:
             #     raise serializers.ValidationError(_("Username is not active!"))
