@@ -6,12 +6,15 @@ logger = logging.getLogger('django')
 
 # roles definitions
 ROLE_ROOT = 'root'
+ROLE_STAFF = 'staff'
+
 # ROLE_ADMIN_LOG = 'admin-log'
 
 NO_ROLE = 'no_role'
 
 roles = [
     ROLE_ROOT,
+    ROLE_STAFF,
     NO_ROLE,
 ]
 
@@ -69,12 +72,15 @@ def user_has_role(role, user_id=None, request=None):
 # used for customers
 # add_resource('OrderDetailsView')
 add_resource('LenderViewSet')
+add_resource('DisableTwoStepAuthByStaff')
 
 # allow()
 
 # *********************************************************************************
 # allow root to access all of resources
 allow('root')
+
+allow([ROLE_STAFF], ['DisableTwoStepAuthByStaff'])
 
 # ********************************************************************************
 # sales resources

@@ -13,6 +13,7 @@ from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
 from sandogh.models import Member, Staff
+from .util.permissions import UserRolePermission
 from .util.extra_helper import get_ip
 from .util.auth_helper import auth_token_response
 from .util.authentication import get_authorization_header, CustomTokenAuthentication
@@ -146,7 +147,7 @@ class Logout(views.APIView):
         return Response(status=status.HTTP_200_OK)
 
 
-class EnableGa(views.APIView):
+class EnableGaAuth(views.APIView):
 
     @swagger_auto_schema(
         operation_description='It will return the google authentication url if this already is enabled.',
@@ -191,7 +192,7 @@ class EnableSmsAuth(views.APIView):
         return Response(status=status.HTTP_200_OK)
 
 
-class DisableGa(views.APIView):
+class DisableGaAuth(views.APIView):
 
     def get(self, request, format=None):
         userMeta = request.user.usermeta
@@ -214,6 +215,22 @@ class DisableSmsAuth(views.APIView):
             VerificationSms.objects.filter(user=request.user).delete()
         else:
             pass
+        return Response(status=status.HTTP_200_OK)
+
+
+class DisableTwoStepAuthByStaff(views.APIView):
+    permission_classes = [UserRolePermission]
+
+    def get(self, request, user_id=None):
+        try:
+            user = User.objects.get(pk=user_id)
+        except User.DoesNotExist:
+            return Response({"details": 'User not found.'},
+                            status=status.HTTP_400_BAD_REQUEST)
+        user.usermeta.verification_type = UserMeta.VERIFICATION_PRIMARY
+        user.usermeta.save()
+        VerificationGa.objects.filter(user=user).delete()
+        VerificationSms.objects.filter(user=user).delete()
         return Response(status=status.HTTP_200_OK)
 
 
